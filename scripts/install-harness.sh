@@ -14,6 +14,10 @@ Options:
       --dry-run          Show what would change without writing files.
   -h, --help             Show this help.
 
+Safety:
+  The installer stops if AGENTS.md, docs/, or scripts/ already exist in the
+  target directory. Pick an empty target or move those paths first.
+
 Examples:
   scripts/install-harness.sh
   scripts/install-harness.sh --directory /path/to/project --yes
@@ -28,6 +32,11 @@ log() {
 
 fail() {
   printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+warn_stop() {
+  printf 'Warning: %s\n' "$*" >&2
   exit 1
 }
 
@@ -108,6 +117,28 @@ write_source_file() {
 
   local url="$SOURCE_BASE_URL/$relative"
   curl -fsSL "$url" -o "$target" || fail "Could not download $url"
+}
+
+check_protected_target_paths() {
+  local conflicts=()
+
+  [ -e "$TARGET_DIR/AGENTS.md" ] && conflicts+=("AGENTS.md")
+  [ -e "$TARGET_DIR/docs" ] && conflicts+=("docs/")
+  [ -e "$TARGET_DIR/scripts" ] && conflicts+=("scripts/")
+
+  if [ "${#conflicts[@]}" -gt 0 ]; then
+    local joined=""
+    local item
+    for item in "${conflicts[@]}"; do
+      if [ -n "$joined" ]; then
+        joined="$joined, $item"
+      else
+        joined="$item"
+      fi
+    done
+
+    warn_stop "target already contains protected Harness paths: $joined. Refusing to install so existing project instructions or docs are not mixed or overwritten. Use an empty target directory, or move those paths before running the installer."
+  fi
 }
 
 TARGET_INPUT="${HARNESS_TARGET_DIR:-$PWD}"
@@ -207,6 +238,10 @@ if [ -d "$TARGET_DIR" ]; then
   [ -w "$TARGET_DIR" ] || fail "Target directory is not writable: $TARGET_DIR"
 else
   [ -w "$(dirname "$TARGET_DIR")" ] || fail "Target parent directory is not writable: $(dirname "$TARGET_DIR")"
+fi
+
+if [ -d "$TARGET_DIR" ]; then
+  check_protected_target_paths
 fi
 
 if [ "$SOURCE_MODE" = "local" ]; then

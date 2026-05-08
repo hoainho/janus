@@ -75,7 +75,8 @@ Or install into a specific path:
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --directory /path/to/project --yes
 ```
 
-Existing files are skipped by default. Use `--dry-run` to preview changes, or
-`--force` to overwrite existing files after timestamped backups are created.
-The installer itself and this repository's installer story are not copied into
-the target project.
+If the target already contains `AGENTS.md`, `docs/`, or `scripts/`, the
+installer warns and stops before writing files. Use an empty target directory,
+or move those paths first. Use `--dry-run` to preview changes. The installer
+itself and this repository's installer story are not copied into the target
+project.

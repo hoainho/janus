@@ -26,8 +26,11 @@ scripts, CI, tests, or product implementation.
 - The installer defaults to the current directory when no target is provided.
 - The installer accepts a specific target path through a command-line option or
   positional argument.
-- Existing files are not overwritten by default.
-- Forced overwrites create a timestamped backup before replacing files.
+- If `AGENTS.md`, `docs/`, or `scripts/` already exists in the target, the
+  installer shows a warning and stops before writing files.
+- Existing non-protected files are not overwritten by default.
+- Forced overwrites create a timestamped backup before replacing non-protected
+  files.
 - A dry-run mode reports planned file operations without writing files.
 - The installer copies only Harness v0 operating files and does not scaffold
   application code, package scripts, CI, or validation commands.
@@ -64,17 +67,19 @@ implementation surfaces are not scaffolded.
 ## Evidence
 
 - `bash -n scripts/install-harness.sh`
-- `scripts/install-harness.sh --directory "$DRY_TARGET" --yes --dry-run`
-- `scripts/install-harness.sh --directory "$TARGET" --yes`
-- `scripts/install-harness.sh --directory "$TARGET" --yes` after editing
-  `README.md` in the target
-- `scripts/install-harness.sh --directory "$TARGET" --yes --force`
-- `scripts/install-harness.sh --yes --dry-run`
+- `scripts/install-harness.sh --directory "$LOCAL_TARGET" --yes`
+- `scripts/install-harness.sh --directory "$README_TARGET" --yes` after adding a
+  custom `README.md` in the target
+- `scripts/install-harness.sh --directory "$AGENTS_CONFLICT" --yes`
+- `scripts/install-harness.sh --directory "$DOCS_CONFLICT" --yes`
+- `scripts/install-harness.sh --directory "$SCRIPTS_CONFLICT" --yes --force`
 - `HARNESS_SOURCE_BASE_URL="file:///Users/themrb/Documents/personal/harness-experimental" bash -s -- --directory "$REMOTE_TARGET" --yes < scripts/install-harness.sh`
 - `curl -fsSL "file:///Users/themrb/Documents/personal/harness-experimental/scripts/install-harness.sh" | HARNESS_SOURCE_BASE_URL="file:///Users/themrb/Documents/personal/harness-experimental" bash -s -- --directory "$TARGET" --yes`
+- `HARNESS_SOURCE_BASE_URL="file:///Users/themrb/Documents/personal/harness-experimental" bash -s -- --directory "$DRY_TARGET" --yes --dry-run < scripts/install-harness.sh`
 
 Validated behaviors: dry-run writes no files, real install creates the harness
-structure, default reinstall skips existing files, forced reinstall overwrites
-after creating backups, self-targeted dry-run treats source files as skips,
-remote-source mode works when the script is piped into Bash, and target projects
-do not receive `scripts/install-harness.sh` or this installer story.
+structure, existing `README.md` is left untouched by default, targets containing
+`AGENTS.md`, `docs/`, or `scripts/` stop with a warning before writing files,
+protected-path conflicts stop even when `--force` is provided, remote-source
+mode works when the script is piped into Bash, and target projects do not
+receive `scripts/install-harness.sh` or this installer story.
