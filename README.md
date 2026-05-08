@@ -69,6 +69,16 @@ From a target project directory, run:
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 ```
 
+If the target already has `AGENTS.md`, `docs/`, or `scripts/`, choose one:
+
+```bash
+# Keep existing files and add only missing Harness files
+curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
+
+# Back up and replace AGENTS.md, docs/, and scripts/
+curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --override --yes
+```
+
 Or install into a specific path:
 
 ```bash
@@ -76,7 +86,7 @@ curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/mai
 ```
 
 If the target already contains `AGENTS.md`, `docs/`, or `scripts/`, interactive
-installs ask whether to stop, merge missing files, or override those paths after
-creating a backup. Non-interactive installs using `--yes` stop before writing so
-automation stays safe. Use `--dry-run` to preview changes. The installer itself
-and this repository's installer story are not copied into the target project.
+installs ask whether to `1. Merge`, `2. Override`, or `3. Stop`. Non-interactive
+installs using `--yes` stop before writing unless `--merge` or `--override` is
+provided. Use `--dry-run` to preview changes. The installer itself and this
+repository's installer story are not copied into the target project.

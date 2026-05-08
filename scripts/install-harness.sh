@@ -10,20 +10,25 @@ Apply the Harness v0 files and folders to a target project directory.
 Options:
   -d, --directory <path>  Target directory. Defaults to the current directory.
   -y, --yes              Accept defaults and skip prompts.
+      --merge            On protected-path conflict, keep existing files and
+                         install only missing Harness files.
+      --override         On protected-path conflict, back up and replace
+                         AGENTS.md, docs/, and scripts/.
       --force            Overwrite existing files after backing them up.
       --dry-run          Show what would change without writing files.
   -h, --help             Show this help.
 
 Safety:
   If AGENTS.md, docs/, or scripts/ already exist, interactive installs ask
-  whether to stop, merge missing files, or override after backup. Non-
-  interactive installs stop.
+  whether to merge missing files, override after backup, or stop. Non-
+  interactive installs stop unless --merge or --override is provided.
 
 Examples:
   scripts/install-harness.sh
   scripts/install-harness.sh --directory /path/to/project --yes
   scripts/install-harness.sh ./my-project --force
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh | bash -s -- --yes
+  curl -fsSL https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh | bash -s -- --merge --yes
 EOF
 }
 
@@ -39,6 +44,20 @@ fail() {
 warn_stop() {
   printf 'Warning: %s\n' "$*" >&2
   exit 1
+}
+
+can_prompt() {
+  [ -r /dev/tty ] && [ -w /dev/tty ]
+}
+
+prompt_tty() {
+  printf '%s' "$1" > /dev/tty
+}
+
+read_tty() {
+  local value
+  IFS= read -r value < /dev/tty
+  printf '%s\n' "$value"
 }
 
 expand_path() {
@@ -142,29 +161,47 @@ check_protected_target_paths() {
     fi
   done
 
-  if [ "$YES" -eq 1 ] || [ ! -t 0 ] || [ ! -t 1 ]; then
+  case "$REQUESTED_CONFLICT_ACTION" in
+    merge)
+      CONFLICT_ACTION="merge"
+      log "Continuing with merge. Existing files will be skipped."
+      return 0
+      ;;
+    override)
+      CONFLICT_ACTION="override"
+      override_protected_target_paths
+      return 0
+      ;;
+    stop)
+      warn_stop "target already contains protected Harness paths: $joined. Refusing to install so existing project instructions or docs are not mixed or overwritten."
+      ;;
+  esac
+
+  if [ "$YES" -eq 1 ] || ! can_prompt; then
     warn_stop "target already contains protected Harness paths: $joined. Refusing to install so existing project instructions or docs are not mixed or overwritten. Use an empty target directory, or move those paths before running the installer."
   fi
 
-  printf 'Warning: target already contains protected Harness paths: %s\n' "$joined" >&2
-  printf 'Choose how to continue:\n' >&2
-  printf '  [s] Stop     Exit without writing files (recommended)\n' >&2
-  printf '  [m] Merge    Copy missing Harness files and skip existing files\n' >&2
-  printf '  [o] Override Back up and replace AGENTS.md, docs/, and scripts/\n' >&2
-  printf 'Choice [s/m/o, default s]: ' >&2
+  {
+    printf 'Warning: target already contains protected Harness paths: %s\n' "$joined"
+    printf 'Choose how to continue:\n'
+    printf '  1. Merge    Copy missing Harness files and skip existing files\n'
+    printf '  2. Override Back up and replace AGENTS.md, docs/, and scripts/\n'
+    printf '  3. Stop     Exit without writing files (recommended)\n'
+  } > /dev/tty
+  prompt_tty 'Choice [1/2/3, default 3]: '
 
   local choice
-  read -r choice
+  choice="$(read_tty)"
   case "$choice" in
-    m|M|merge|Merge)
+    1|m|M|merge|Merge)
       CONFLICT_ACTION="merge"
       log "Continuing with merge. Existing files will be skipped."
       ;;
-    o|O|override|Override)
+    2|o|O|override|Override)
       CONFLICT_ACTION="override"
       override_protected_target_paths
       ;;
-    ""|s|S|stop|Stop)
+    ""|3|s|S|stop|Stop)
       warn_stop "installation stopped by user."
       ;;
     *)
@@ -194,6 +231,7 @@ TARGET_INPUT="${HARNESS_TARGET_DIR:-$PWD}"
 YES=0
 FORCE=0
 DRY_RUN=0
+REQUESTED_CONFLICT_ACTION=""
 POSITIONAL_TARGET=""
 
 while [ "$#" -gt 0 ]; do
@@ -209,6 +247,18 @@ while [ "$#" -gt 0 ]; do
       ;;
     --force)
       FORCE=1
+      shift
+      ;;
+    --merge)
+      REQUESTED_CONFLICT_ACTION="merge"
+      shift
+      ;;
+    --override)
+      REQUESTED_CONFLICT_ACTION="override"
+      shift
+      ;;
+    --stop)
+      REQUESTED_CONFLICT_ACTION="stop"
       shift
       ;;
     --dry-run)
@@ -258,9 +308,9 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DI
   SOURCE_MODE="local"
 fi
 
-if [ "$YES" -eq 0 ] && [ -t 0 ] && [ -t 1 ]; then
-  printf 'Install Harness v0 into [%s]: ' "$TARGET_INPUT"
-  read -r REPLY_TARGET
+if [ "$YES" -eq 0 ] && can_prompt; then
+  prompt_tty "Install Harness v0 into [$TARGET_INPUT]: "
+  REPLY_TARGET="$(read_tty)"
   if [ -n "$REPLY_TARGET" ]; then
     TARGET_INPUT="$REPLY_TARGET"
   fi
