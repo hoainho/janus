@@ -20,7 +20,7 @@ sql() { sqlite3 -batch -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" "$@"; }
 
 sql_pretty() { sqlite3 -header -column -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" "$@"; }
 
-sql_file() { sqlite3 -batch -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" < "$1"; }
+sql_file() { sqlite3 -batch -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" < "$1" >/dev/null; }
 
 normalize_token() {
   local input="$1"
@@ -63,6 +63,16 @@ normalize_risk() {
   normalize_lane "$1"
 }
 
+require_integer() {
+  local label="$1" value="$2"
+  [[ "$value" =~ ^[0-9]+$ ]] || die "$label must be an integer"
+}
+
+require_bool() {
+  local label="$1" value="$2"
+  [[ "$value" =~ ^[01]$ ]] || die "$label must be 0 or 1"
+}
+
 json_array() {
   # Turn a comma-separated string into a JSON array.
   local input="$1"
@@ -76,6 +86,12 @@ cmd_init() {
     info "Database already exists at $DB_PATH"
     local current
     current=$(sql "SELECT COALESCE(MAX(version),0) FROM schema_version;" 2>/dev/null || echo 0)
+    if [ "$current" -eq 0 ]; then
+      info "No schema version found. Applying schema version 1."
+      sql_file "$SCHEMA_DIR/001-init.sql"
+      info "Schema version 1 applied."
+      return 0
+    fi
     info "Current schema version: $current"
     return 0
   fi
@@ -88,7 +104,7 @@ cmd_init() {
 cmd_migrate() {
   need_db
   local current
-  current=$(sql "SELECT COALESCE(MAX(version),0) FROM schema_version;")
+  current=$(sql "SELECT COALESCE(MAX(version),0) FROM schema_version;" 2>/dev/null || echo 0)
   info "Current schema version: $current"
 
   local applied=0
@@ -197,6 +213,10 @@ cmd_story() {
         esac
       done
       [ -n "$id" ] || die "story update: --id is required"
+      [ -n "$unit" ]        && require_bool "story update: --unit" "$unit"
+      [ -n "$integration" ] && require_bool "story update: --integration" "$integration"
+      [ -n "$e2e" ]         && require_bool "story update: --e2e" "$e2e"
+      [ -n "$platform" ]    && require_bool "story update: --platform" "$platform"
 
       local sets=""
       [ -n "$status" ]      && sets="$sets status='$status',"
@@ -322,13 +342,17 @@ cmd_backlog() {
         esac
       done
       [ -n "$id" ] || die "backlog close: --id is required"
+      require_integer "backlog close: --id" "$id"
       local new_status="${s:-implemented}"
 
-      sql "UPDATE backlog
+      local changed
+      changed=$(sql "UPDATE backlog
            SET status='$new_status',
                actual_outcome=$([ -n "$actual_outcome" ] && echo "'$(echo "$actual_outcome" | sed "s/'/''/g")'" || echo "NULL"),
                implemented_at=datetime('now')
-           WHERE id=$id;"
+           WHERE id=$id;
+           SELECT changes();")
+      [ "$changed" -gt 0 ] || die "backlog close: backlog item '$id' not found"
       info "Backlog #$id closed as $new_status."
       ;;
 
@@ -365,6 +389,9 @@ cmd_trace() {
   done
 
   [ -n "$task_summary" ] || die "trace: --summary is required"
+  [ -n "$intake_id" ] && require_integer "trace: --intake" "$intake_id"
+  [ -n "$duration" ]  && require_integer "trace: --duration" "$duration"
+  [ -n "$tokens" ]    && require_integer "trace: --tokens" "$tokens"
 
   local last_id
   last_id=$(sql "INSERT INTO trace (
@@ -393,8 +420,16 @@ cmd_trace() {
 
 # ── query ──────────────────────────────────────────────────────────
 cmd_query() {
-  need_db
   local view="${1:-help}"
+
+  case "$view" in
+    help|--help|-h)
+      show_query_help
+      return 0
+      ;;
+  esac
+
+  need_db
 
   case "$view" in
     matrix)
@@ -440,8 +475,12 @@ cmd_query() {
       shift
       sql_pretty "$@"
       ;;
-    help|*)
-      cat <<'EOF'
+    *) die "query: unknown view $view. Run 'harness query help'." ;;
+  esac
+}
+
+show_query_help() {
+  cat <<'EOF'
 Usage: harness query <view>
 
 Views:
@@ -454,13 +493,129 @@ Views:
   stats       Summary counts
   sql <query> Run arbitrary SQL
 EOF
+}
+
+# ── main ───────────────────────────────────────────────────────────
+show_command_help() {
+  case "$1" in
+    init)
+      cat <<'EOF'
+Usage: harness init
+
+Create the harness database if it does not already exist.
+EOF
+      ;;
+    migrate)
+      cat <<'EOF'
+Usage: harness migrate
+
+Apply schema migrations that have not been recorded in schema_version.
+EOF
+      ;;
+    intake)
+      cat <<'EOF'
+Usage: harness intake --type <type> --summary <text> --lane <lane> [flags]
+
+Flags:
+  --type <type>      new spec, spec slice, change request, new initiative,
+                     maintenance request, or harness improvement
+  --summary <text>   Short work summary
+  --lane <lane>      tiny, normal, or high-risk
+  --flags <csv>      Risk flags
+  --docs <csv>       Affected doc paths
+  --story <id>       Linked story id
+  --notes <text>     Additional notes
+EOF
+      ;;
+    story)
+      cat <<'EOF'
+Usage:
+  harness story add --id <id> --title <text> --lane <lane> [flags]
+  harness story update --id <id> [flags]
+
+Add flags:
+  --contract <path>  Related product contract
+  --notes <text>     Additional notes
+
+Update flags:
+  --status <status>  planned, in_progress, implemented, changed, or retired
+  --evidence <text>  Validation evidence
+  --unit <0|1>       Unit proof status
+  --integration <0|1>
+  --e2e <0|1>
+  --platform <0|1>
+EOF
+      ;;
+    decision)
+      cat <<'EOF'
+Usage:
+  harness decision add --id <id> --title <text> [flags]
+  harness decision verify <id>
+
+Add flags:
+  --status <status>      proposed, accepted, superseded, or rejected
+  --doc <path>           Decision document path
+  --verify <command>     Verification command
+  --predicted <text>     Predicted impact
+  --notes <text>         Additional notes
+EOF
+      ;;
+    backlog)
+      cat <<'EOF'
+Usage:
+  harness backlog add --title <text> [flags]
+  harness backlog close --id <id> [flags]
+
+Add flags:
+  --while <text>       Discovery context
+  --pain <text>        Current pain
+  --suggestion <text>  Suggested improvement
+  --risk <lane>        tiny, normal, or high-risk
+  --predicted <text>   Predicted impact
+  --notes <text>       Additional notes
+
+Close flags:
+  --status <status>    implemented, accepted, proposed, or rejected
+  --outcome <text>     Actual outcome
+EOF
+      ;;
+    trace)
+      cat <<'EOF'
+Usage: harness trace --summary <text> [flags]
+
+Flags:
+  --summary <text>    Task summary
+  --intake <id>       Linked intake id
+  --story <id>        Linked story id
+  --agent <name>      Agent name
+  --outcome <result>  completed, blocked, partial, or failed
+  --actions <csv>     Actions taken
+  --read <csv>        Files read
+  --changed <csv>     Files changed
+  --decisions <csv>   Decisions made
+  --errors <csv>      Errors encountered
+  --duration <sec>    Duration in seconds
+  --tokens <count>    Token estimate
+  --friction <text>   Harness friction
+  --notes <text>      Additional notes
+EOF
+      ;;
+    query)
+      show_query_help
+      ;;
+    *)
+      return 1
       ;;
   esac
 }
 
-# ── main ───────────────────────────────────────────────────────────
 cmd="${1:-help}"
 shift 2>/dev/null || true
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  show_command_help "$cmd" || die "Unknown command: $cmd. Run 'harness help'."
+  exit 0
+fi
 
 case "$cmd" in
   init)     cmd_init "$@" ;;
