@@ -21,7 +21,9 @@ Options:
 Safety:
   If AGENTS.md, docs/, or scripts/ already exist, interactive installs ask
   whether to merge missing files, override after backup, or stop. Non-
-  interactive installs stop unless --merge or --override is provided.
+  interactive installs stop unless --merge or --override is provided. If a
+  target .gitignore already exists, Harness appends its local database rules
+  unless --force is used.
 
 Examples:
   scripts/install-harness.sh
@@ -89,7 +91,7 @@ copy_file() {
   local relative="$1"
   local target="$TARGET_DIR/$relative"
 
-  if [ "$relative" = ".gitignore" ] && [ -e "$target" ]; then
+  if [ "$relative" = ".gitignore" ] && [ -e "$target" ] && [ "$FORCE" -eq 0 ]; then
     merge_gitignore "$target"
     return
   fi
