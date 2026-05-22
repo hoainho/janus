@@ -89,6 +89,11 @@ copy_file() {
   local relative="$1"
   local target="$TARGET_DIR/$relative"
 
+  if [ "$relative" = ".gitignore" ] && [ -e "$target" ]; then
+    merge_gitignore "$target"
+    return
+  fi
+
   if [ -e "$target" ]; then
     if [ "$SOURCE_MODE" = "local" ] && [ "$SOURCE_ROOT/$relative" -ef "$target" ]; then
       log "skip     $relative (source file)"
@@ -125,6 +130,33 @@ copy_file() {
     log "created  $relative"
   fi
   CREATED=$((CREATED + 1))
+}
+
+merge_gitignore() {
+  local target="$1"
+  local marker="# Harness durable layer"
+  local rules="harness.db
+harness.db-wal
+harness.db-shm"
+
+  if grep -Fxq "harness.db" "$target" &&
+     grep -Fxq "harness.db-wal" "$target" &&
+     grep -Fxq "harness.db-shm" "$target"; then
+    log "skip     .gitignore (harness rules already present)"
+    SKIPPED=$((SKIPPED + 1))
+    return
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "update   .gitignore (append harness rules)"
+  else
+    {
+      [ -s "$target" ] && printf '\n'
+      printf '%s\n%s\n' "$marker" "$rules"
+    } >> "$target"
+    log "updated  .gitignore (appended harness rules)"
+  fi
+  UPDATED=$((UPDATED + 1))
 }
 
 write_source_file() {
