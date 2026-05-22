@@ -16,9 +16,52 @@ need_db() {
   [ -f "$DB_PATH" ] || die "Database not found at $DB_PATH. Run: harness init"
 }
 
-sql() { sqlite3 -batch "$DB_PATH" "$@"; }
+sql() { sqlite3 -batch -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" "$@"; }
 
-sql_pretty() { sqlite3 -header -column "$DB_PATH" "$@"; }
+sql_pretty() { sqlite3 -header -column -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" "$@"; }
+
+sql_file() { sqlite3 -batch -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" < "$1"; }
+
+normalize_token() {
+  local input="$1"
+  printf '%s' "$input" |
+    tr '[:upper:]' '[:lower:]' |
+    sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[^a-z0-9]+/_/g; s/^_+//; s/_+$//'
+}
+
+normalize_input_type() {
+  local token
+  token="$(normalize_token "$1")"
+  case "$token" in
+    new_spec|spec_slice|change_request|new_initiative|harness_improvement)
+      printf '%s' "$token"
+      ;;
+    maintenance|maintenance_request)
+      printf 'maintenance'
+      ;;
+    *)
+      die "unknown intake type '$1'. Use: new spec, spec slice, change request, new initiative, maintenance request, or harness improvement"
+      ;;
+  esac
+}
+
+normalize_lane() {
+  local token
+  token="$(normalize_token "$1")"
+  case "$token" in
+    tiny|normal|high_risk)
+      printf '%s' "$token"
+      ;;
+    *)
+      die "unknown lane '$1'. Use: tiny, normal, or high-risk"
+      ;;
+  esac
+}
+
+normalize_risk() {
+  [ -z "$1" ] && return
+  normalize_lane "$1"
+}
 
 json_array() {
   # Turn a comma-separated string into a JSON array.
@@ -37,7 +80,7 @@ cmd_init() {
     return 0
   fi
   info "Creating harness database at $DB_PATH"
-  sqlite3 "$DB_PATH" < "$SCHEMA_DIR/001-init.sql"
+  sql_file "$SCHEMA_DIR/001-init.sql"
   info "Schema version 1 applied."
 }
 
@@ -56,7 +99,7 @@ cmd_migrate() {
     [ -z "$v" ] && continue
     if [ "$v" -gt "$current" ]; then
       info "Applying migration $v from $(basename "$f")..."
-      sqlite3 "$DB_PATH" < "$f"
+      sql_file "$f"
       applied=$((applied + 1))
     fi
   done
@@ -90,19 +133,21 @@ cmd_intake() {
   [ -n "$summary" ]    || die "intake: --summary is required"
   [ -n "$risk_lane" ]  || die "intake: --lane is required"
 
+  input_type="$(normalize_input_type "$input_type")"
+  risk_lane="$(normalize_lane "$risk_lane")"
+
   local flags_json
   flags_json=$(json_array "$risk_flags")
   local docs_json
   docs_json=$(json_array "$affected_docs")
 
-  sql "INSERT INTO intake (input_type, summary, risk_lane, risk_flags, affected_docs, story_id, notes)
+  local last_id
+  last_id=$(sql "INSERT INTO intake (input_type, summary, risk_lane, risk_flags, affected_docs, story_id, notes)
        VALUES ('$input_type', '$(echo "$summary" | sed "s/'/''/g")', '$risk_lane',
                '$flags_json', '$docs_json',
                $([ -n "$story_id" ] && echo "'$story_id'" || echo "NULL"),
-               $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));"
-
-  local last_id
-  last_id=$(sql "SELECT last_insert_rowid();")
+               $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));
+       SELECT last_insert_rowid();")
   info "Intake #$last_id recorded."
 }
 
@@ -127,6 +172,8 @@ cmd_story() {
       [ -n "$id" ]        || die "story add: --id is required"
       [ -n "$title" ]     || die "story add: --title is required"
       [ -n "$risk_lane" ] || die "story add: --lane is required"
+
+      risk_lane="$(normalize_lane "$risk_lane")"
 
       sql "INSERT INTO story (id, title, risk_lane, contract_doc, notes)
            VALUES ('$id', '$(echo "$title" | sed "s/'/''/g")', '$risk_lane',
@@ -247,18 +294,18 @@ cmd_backlog() {
         esac
       done
       [ -n "$title" ] || die "backlog add: --title is required"
+      [ -n "$risk" ] && risk="$(normalize_risk "$risk")"
 
-      sql "INSERT INTO backlog (title, discovered_while, current_pain, suggested_improvement, risk, predicted_impact, notes)
+      local last_id
+      last_id=$(sql "INSERT INTO backlog (title, discovered_while, current_pain, suggested_improvement, risk, predicted_impact, notes)
            VALUES ('$(echo "$title" | sed "s/'/''/g")',
                    $([ -n "$discovered_while" ] && echo "'$(echo "$discovered_while" | sed "s/'/''/g")'" || echo "NULL"),
                    $([ -n "$current_pain" ] && echo "'$(echo "$current_pain" | sed "s/'/''/g")'" || echo "NULL"),
                    $([ -n "$suggestion" ] && echo "'$(echo "$suggestion" | sed "s/'/''/g")'" || echo "NULL"),
                    $([ -n "$risk" ] && echo "'$risk'" || echo "NULL"),
                    $([ -n "$predicted" ] && echo "'$(echo "$predicted" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));"
-
-      local last_id
-      last_id=$(sql "SELECT last_insert_rowid();")
+                   $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));
+           SELECT last_insert_rowid();")
       info "Backlog #$last_id added."
       ;;
 
@@ -317,7 +364,8 @@ cmd_trace() {
 
   [ -n "$task_summary" ] || die "trace: --summary is required"
 
-  sql "INSERT INTO trace (
+  local last_id
+  last_id=$(sql "INSERT INTO trace (
          task_summary, intake_id, story_id, agent,
          actions_taken, files_read, files_changed, decisions_made, errors,
          outcome, duration_seconds, token_estimate, harness_friction, notes
@@ -336,10 +384,8 @@ cmd_trace() {
          $([ -n "$tokens" ] && echo "$tokens" || echo "NULL"),
          $([ -n "$friction" ] && echo "'$(echo "$friction" | sed "s/'/''/g")'" || echo "NULL"),
          $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL")
-       );"
-
-  local last_id
-  last_id=$(sql "SELECT last_insert_rowid();")
+       );
+       SELECT last_insert_rowid();")
   info "Trace #$last_id recorded."
 }
 
