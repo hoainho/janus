@@ -208,7 +208,9 @@ cmd_story() {
       [ -z "$sets" ] && die "story update: nothing to update"
       sets="${sets%,}"
 
-      sql "UPDATE story SET $sets WHERE id='$id';"
+      local changed
+      changed=$(sql "UPDATE story SET $sets WHERE id='$id'; SELECT changes();")
+      [ "$changed" -gt 0 ] || die "story update: story '$id' not found"
       info "Story $id updated."
       ;;
 
