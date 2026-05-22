@@ -16,6 +16,14 @@ need_db() {
   [ -f "$DB_PATH" ] || die "Database not found at $DB_PATH. Run: harness init"
 }
 
+sql_escape() { printf '%s' "$1" | sed "s/'/''/g"; }
+
+sql_literal() { printf "'%s'" "$(sql_escape "$1")"; }
+
+sql_or_null() {
+  [ -n "$1" ] && sql_literal "$1" || printf 'NULL'
+}
+
 sql() { sqlite3 -batch -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" "$@"; }
 
 sql_pretty() { sqlite3 -header -column -cmd "PRAGMA foreign_keys = ON;" "$DB_PATH" "$@"; }
@@ -78,6 +86,12 @@ json_array() {
   local input="$1"
   [ -z "$input" ] && printf 'null' && return
   printf '[%s]' "$(echo "$input" | sed 's/[[:space:]]*,[[:space:]]*/","/g; s/^/"/; s/$/"/')"
+}
+
+json_sql_value() {
+  local input="$1"
+  [ -z "$input" ] && printf 'NULL' && return
+  printf "'%s'" "$(sql_escape "$(json_array "$input")")"
 }
 
 # ── init ───────────────────────────────────────────────────────────
@@ -159,10 +173,10 @@ cmd_intake() {
 
   local last_id
   last_id=$(sql "INSERT INTO intake (input_type, summary, risk_lane, risk_flags, affected_docs, story_id, notes)
-       VALUES ('$input_type', '$(echo "$summary" | sed "s/'/''/g")', '$risk_lane',
-               '$flags_json', '$docs_json',
-               $([ -n "$story_id" ] && echo "'$story_id'" || echo "NULL"),
-               $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));
+       VALUES ($(sql_literal "$input_type"), $(sql_literal "$summary"), $(sql_literal "$risk_lane"),
+               $(sql_literal "$flags_json"), $(sql_literal "$docs_json"),
+               $(sql_or_null "$story_id"),
+               $(sql_or_null "$notes"));
        SELECT last_insert_rowid();")
   info "Intake #$last_id recorded."
 }
@@ -192,9 +206,9 @@ cmd_story() {
       risk_lane="$(normalize_lane "$risk_lane")"
 
       sql "INSERT INTO story (id, title, risk_lane, contract_doc, notes)
-           VALUES ('$id', '$(echo "$title" | sed "s/'/''/g")', '$risk_lane',
-                   $([ -n "$contract_doc" ] && echo "'$contract_doc'" || echo "NULL"),
-                   $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));"
+           VALUES ($(sql_literal "$id"), $(sql_literal "$title"), $(sql_literal "$risk_lane"),
+                   $(sql_or_null "$contract_doc"),
+                   $(sql_or_null "$notes"));"
       info "Story $id added."
       ;;
 
@@ -219,8 +233,8 @@ cmd_story() {
       [ -n "$platform" ]    && require_bool "story update: --platform" "$platform"
 
       local sets=""
-      [ -n "$status" ]      && sets="$sets status='$status',"
-      [ -n "$evidence" ]    && sets="$sets evidence='$(echo "$evidence" | sed "s/'/''/g")',"
+      [ -n "$status" ]      && sets="$sets status=$(sql_literal "$status"),"
+      [ -n "$evidence" ]    && sets="$sets evidence=$(sql_literal "$evidence"),"
       [ -n "$unit" ]        && sets="$sets unit_proof=$unit,"
       [ -n "$integration" ] && sets="$sets integration_proof=$integration,"
       [ -n "$e2e" ]         && sets="$sets e2e_proof=$e2e,"
@@ -229,7 +243,7 @@ cmd_story() {
       sets="${sets%,}"
 
       local changed
-      changed=$(sql "UPDATE story SET $sets WHERE id='$id'; SELECT changes();")
+      changed=$(sql "UPDATE story SET $sets WHERE id=$(sql_literal "$id"); SELECT changes();")
       [ "$changed" -gt 0 ] || die "story update: story '$id' not found"
       info "Story $id updated."
       ;;
@@ -264,11 +278,11 @@ cmd_decision() {
       [ -n "$title" ] || die "decision add: --title is required"
 
       sql "INSERT INTO decision (id, title, status, doc_path, verify_command, predicted_impact, notes)
-           VALUES ('$id', '$(echo "$title" | sed "s/'/''/g")', '$status',
-                   $([ -n "$doc_path" ] && echo "'$doc_path'" || echo "NULL"),
-                   $([ -n "$verify_command" ] && echo "'$(echo "$verify_command" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$predicted_impact" ] && echo "'$(echo "$predicted_impact" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));"
+           VALUES ($(sql_literal "$id"), $(sql_literal "$title"), $(sql_literal "$status"),
+                   $(sql_or_null "$doc_path"),
+                   $(sql_or_null "$verify_command"),
+                   $(sql_or_null "$predicted_impact"),
+                   $(sql_or_null "$notes"));"
       info "Decision $id added."
       ;;
 
@@ -276,7 +290,7 @@ cmd_decision() {
       local id="${1:-}"
       [ -n "$id" ] || die "decision verify: provide a decision id"
       local cmd
-      cmd=$(sql "SELECT verify_command FROM decision WHERE id='$id';")
+      cmd=$(sql "SELECT verify_command FROM decision WHERE id=$(sql_literal "$id");")
       [ -n "$cmd" ] || die "decision $id has no verify_command"
       info "Running: $cmd"
       local result
@@ -285,7 +299,7 @@ cmd_decision() {
       else
         result="fail"
       fi
-      sql "UPDATE decision SET last_verified_at=datetime('now'), last_verified_result='$result' WHERE id='$id';"
+      sql "UPDATE decision SET last_verified_at=datetime('now'), last_verified_result=$(sql_literal "$result") WHERE id=$(sql_literal "$id");"
       info "Decision $id verification: $result"
       ;;
 
@@ -320,13 +334,13 @@ cmd_backlog() {
 
       local last_id
       last_id=$(sql "INSERT INTO backlog (title, discovered_while, current_pain, suggested_improvement, risk, predicted_impact, notes)
-           VALUES ('$(echo "$title" | sed "s/'/''/g")',
-                   $([ -n "$discovered_while" ] && echo "'$(echo "$discovered_while" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$current_pain" ] && echo "'$(echo "$current_pain" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$suggestion" ] && echo "'$(echo "$suggestion" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$risk" ] && echo "'$risk'" || echo "NULL"),
-                   $([ -n "$predicted" ] && echo "'$(echo "$predicted" | sed "s/'/''/g")'" || echo "NULL"),
-                   $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL"));
+           VALUES ($(sql_literal "$title"),
+                   $(sql_or_null "$discovered_while"),
+                   $(sql_or_null "$current_pain"),
+                   $(sql_or_null "$suggestion"),
+                   $(sql_or_null "$risk"),
+                   $(sql_or_null "$predicted"),
+                   $(sql_or_null "$notes"));
            SELECT last_insert_rowid();")
       info "Backlog #$last_id added."
       ;;
@@ -347,8 +361,8 @@ cmd_backlog() {
 
       local changed
       changed=$(sql "UPDATE backlog
-           SET status='$new_status',
-               actual_outcome=$([ -n "$actual_outcome" ] && echo "'$(echo "$actual_outcome" | sed "s/'/''/g")'" || echo "NULL"),
+           SET status=$(sql_literal "$new_status"),
+               actual_outcome=$(sql_or_null "$actual_outcome"),
                implemented_at=datetime('now')
            WHERE id=$id;
            SELECT changes();")
@@ -399,20 +413,20 @@ cmd_trace() {
          actions_taken, files_read, files_changed, decisions_made, errors,
          outcome, duration_seconds, token_estimate, harness_friction, notes
        ) VALUES (
-         '$(echo "$task_summary" | sed "s/'/''/g")',
+         $(sql_literal "$task_summary"),
          $([ -n "$intake_id" ] && echo "$intake_id" || echo "NULL"),
-         $([ -n "$story_id" ] && echo "'$story_id'" || echo "NULL"),
-         $([ -n "$agent" ] && echo "'$(echo "$agent" | sed "s/'/''/g")'" || echo "NULL"),
-         $([ -n "$actions" ] && echo "'$(json_array "$actions")'" || echo "NULL"),
-         $([ -n "$files_read" ] && echo "'$(json_array "$files_read")'" || echo "NULL"),
-         $([ -n "$files_changed" ] && echo "'$(json_array "$files_changed")'" || echo "NULL"),
-         $([ -n "$decisions" ] && echo "'$(json_array "$decisions")'" || echo "NULL"),
-         $([ -n "$errors" ] && echo "'$(json_array "$errors")'" || echo "NULL"),
-         $([ -n "$outcome" ] && echo "'$outcome'" || echo "NULL"),
+         $(sql_or_null "$story_id"),
+         $(sql_or_null "$agent"),
+         $(json_sql_value "$actions"),
+         $(json_sql_value "$files_read"),
+         $(json_sql_value "$files_changed"),
+         $(json_sql_value "$decisions"),
+         $(json_sql_value "$errors"),
+         $(sql_or_null "$outcome"),
          $([ -n "$duration" ] && echo "$duration" || echo "NULL"),
          $([ -n "$tokens" ] && echo "$tokens" || echo "NULL"),
-         $([ -n "$friction" ] && echo "'$(echo "$friction" | sed "s/'/''/g")'" || echo "NULL"),
-         $([ -n "$notes" ] && echo "'$(echo "$notes" | sed "s/'/''/g")'" || echo "NULL")
+         $(sql_or_null "$friction"),
+         $(sql_or_null "$notes")
        );
        SELECT last_insert_rowid();")
   info "Trace #$last_id recorded."

@@ -401,6 +401,7 @@ docs/TEST_MATRIX.md
 docs/decisions/0001-harness-first-development.md
 docs/decisions/0002-post-spec-product-lifecycle.md
 docs/decisions/0003-generic-spec-intake-harness.md
+docs/decisions/0004-sqlite-durable-layer.md
 docs/decisions/README.md
 docs/product/README.md
 docs/stories/README.md
