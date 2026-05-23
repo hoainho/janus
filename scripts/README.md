@@ -25,6 +25,24 @@ file (`harness.db`) is `.gitignore`d.
 
 Requires: `sqlite3`.
 
+### Rust CLI Migration
+
+`scripts/harness` can delegate migrated command slices to the Rust CLI when a
+compiled binary exists at `target/debug/harness-cli` or at the path provided by
+`HARNESS_RUST_CLI`.
+
+Current migrated commands:
+
+```bash
+scripts/harness init
+scripts/harness intake ...
+scripts/harness query intakes
+scripts/harness query stats
+```
+
+Set `HARNESS_DISABLE_RUST_CLI=1` to force the Bash implementation while parity
+work is in progress.
+
 ## Installer
 
 The upstream installer applies the Harness v0 operating files and folder
