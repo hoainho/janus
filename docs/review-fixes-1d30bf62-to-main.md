@@ -45,3 +45,13 @@ Harness intake: `#34`
   - `cargo test --workspace` passed with 10 tests.
   - `git diff --check`
   - `scripts/harness query matrix`
+
+## Pass 3
+
+- Status: interrupted by Codex usage limit.
+- Command: `codex review --base 1d30bf62a30cd7e65ebcefed765b3f924d381b49`
+- Result: review did not complete; Codex reported the usage limit and said to
+  retry at 4:33 PM.
+- Findings: unavailable.
+- Fixes: none.
+- Validation: final no-findings proof is still pending.
