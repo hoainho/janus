@@ -10,8 +10,8 @@ Apply the Harness v0 files and folders to a target project directory.
 Options:
   -d, --directory <path>  Target directory. Defaults to the current directory.
   -y, --yes              Accept defaults and skip prompts.
-      --merge            On protected-path conflict, keep existing files and
-                         install only missing Harness files.
+      --merge            On protected-path conflict, keep existing files in
+                         place and install only missing Harness files.
       --override         On protected-path conflict, back up and replace
                          AGENTS.md, docs/, and scripts/.
       --force            Overwrite existing files after backing them up.
@@ -20,7 +20,9 @@ Options:
 
 Safety:
   If AGENTS.md, docs/, or scripts/ already exist, interactive installs ask
-  whether to merge missing files, override after backup, or stop. Non-
+  whether to merge missing files, override after backup, or stop. Merge is the
+  safe update path for repositories that already have Harness: existing files
+  stay in place and new Harness files are appended by path. Non-
   interactive installs stop unless --merge or --override is provided. If a
   target .gitignore already exists, Harness appends its local database rules
   unless --force is used.

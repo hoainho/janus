@@ -33,7 +33,10 @@ accepts a target path, and asks interactive users whether to `1. Merge`,
 `2. Override`, or `3. Stop` when the target already contains `AGENTS.md`,
 `docs/`, or `scripts/`.
 Non-interactive installs stop on those protected paths unless `--merge` or
-`--override` is provided.
+`--override` is provided. Use `--merge` as the safe update path for repositories
+that already have Harness: it keeps existing files in place and creates only
+missing Harness files. Use `--override` only when replacing the protected
+Harness surface is intentional.
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
