@@ -220,6 +220,7 @@ backup_agent_file() {
 
   [ -e "$target" ] || return 0
   mkdir -p "$BACKUP_DIR"
+  [ -e "$BACKUP_DIR/AGENTS.md" ] && return 0
   cp -p "$target" "$BACKUP_DIR/AGENTS.md"
 }
 

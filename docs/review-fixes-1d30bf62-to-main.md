@@ -26,3 +26,22 @@ Harness intake: `#34`
   - `bash -n scripts/install-harness.sh scripts/harness scripts/build-harness-cli-release.sh`
   - `git diff --check`
   - `scripts/harness query matrix`
+
+## Pass 2
+
+- Status: finding fixed; validation in progress.
+- Command: `codex review --base 1d30bf62a30cd7e65ebcefed765b3f924d381b49`
+- Findings:
+  - P2: `--refresh-agent-shim` could overwrite an existing
+    `$BACKUP_DIR/AGENTS.md` created earlier by `--override` or `--force`.
+- Fixes:
+  - Made `backup_agent_file` preserve an existing `AGENTS.md` backup instead
+    of replacing it during the refresh step.
+- Validation:
+  - Temp `--override --refresh-agent-shim --yes` install preserved the original
+    `AGENTS.md` in `.harness-backup/.../AGENTS.md`.
+  - `bash -n scripts/install-harness.sh scripts/harness scripts/build-harness-cli-release.sh`
+  - `cargo fmt --check`
+  - `cargo test --workspace` passed with 10 tests.
+  - `git diff --check`
+  - `scripts/harness query matrix`
