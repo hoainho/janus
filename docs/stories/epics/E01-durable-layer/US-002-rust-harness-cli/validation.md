@@ -94,8 +94,17 @@ rm -rf "$target"
   `scripts/harness init` still worked through Bash fallback.
 - Existing `.gitignore` merge test passed: custom rules were preserved while
   `harness.db` and `scripts/bin/harness-cli` ignore rules were appended.
-
-Remaining evidence needed before story completion:
-
-- Run the release workflow from a real tag and confirm the GitHub Release
-  contains all eight expected assets for the four supported targets.
+- Real tag release passed: `harness-cli-v0.1.2` completed the `Harness CLI
+  Release` workflow, including verify, `macos-arm64`, `macos-x64`,
+  `linux-x64`, `linux-arm64`, and publish jobs.
+- GitHub Release verification passed: `harness-cli-v0.1.2` is the latest
+  release and contains exactly eight expected assets:
+  `harness-cli-macos-arm64`, `harness-cli-macos-arm64.sha256`,
+  `harness-cli-macos-x64`, `harness-cli-macos-x64.sha256`,
+  `harness-cli-linux-x64`, `harness-cli-linux-x64.sha256`,
+  `harness-cli-linux-arm64`, and `harness-cli-linux-arm64.sha256`.
+- Remote installer smoke passed from raw GitHub `main` plus
+  `releases/latest/download`: the installer downloaded and verified the
+  `macos-arm64` binary, preserved executable bits for `scripts/harness` and
+  `scripts/bin/harness-cli`, and the installed command ran `init`, `intake`,
+  `query stats`, and `import brownfield`.
