@@ -65,7 +65,8 @@ rm -rf "$target"
 ## Acceptance Evidence
 
 - `cargo fmt --check`: passed.
-- `cargo test --workspace`: passed, 9 tests.
+- `cargo test --workspace`: passed, 10 tests, including regression coverage
+  for repo-root decision verification and SQL `NULL` intake list storage.
 - `bash -n scripts/harness scripts/install-harness.sh`: passed.
 - `.github/workflows/harness-cli-release.yml`: added to verify the workspace,
   build the four supported CLI release targets on hosted native runners, and
