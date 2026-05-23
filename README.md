@@ -90,6 +90,11 @@ curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/mai
 
 Use `--dry-run` to preview changes before writing files.
 
+The installer also downloads the prebuilt Harness CLI for the current platform,
+verifies its `.sha256` checksum, and installs it at
+`scripts/bin/harness-cli`. Use `--skip-cli-download` for an offline Bash-only
+install.
+
 ## Try The Flow
 
 The fastest way to understand the harness is to inspect the tiny demo:

@@ -5,8 +5,15 @@ use std::str::FromStr;
 use clap::{Args, Parser, Subcommand};
 use thiserror::Error;
 
-use crate::application::{HarnessContext, HarnessService, InitResult, IntakeInput};
-use crate::domain::{CsvList, HarnessStats, InputType, IntakeRecord, RiskLane};
+use crate::application::{
+    BacklogAddInput, BacklogCloseInput, DecisionAddInput, HarnessContext, HarnessService,
+    InitResult, IntakeInput, MigrateResult, QueryTable, StoryAddInput, StoryUpdateInput,
+    TraceInput,
+};
+use crate::domain::{
+    parse_optional_integer, BacklogRecord, BoolFlag, CsvList, DecisionRecord, FrictionRecord,
+    HarnessStats, InputType, IntakeRecord, RiskLane, StoryMatrixRecord, TraceRecord,
+};
 
 #[derive(Parser, Debug)]
 #[command(name = "harness")]
@@ -20,8 +27,18 @@ pub struct Cli {
 enum Command {
     /// Create the harness database if it does not already exist.
     Init,
+    /// Apply schema migrations.
+    Migrate,
     /// Record a feature intake classification.
     Intake(IntakeArgs),
+    /// Add or update a story.
+    Story(StoryArgs),
+    /// Add a decision or run its verification.
+    Decision(DecisionArgs),
+    /// Add or close a backlog item.
+    Backlog(BacklogArgs),
+    /// Record an agent execution trace.
+    Trace(TraceArgs),
     /// Query harness data.
     Query(QueryArgs),
 }
@@ -45,6 +62,152 @@ struct IntakeArgs {
 }
 
 #[derive(Args, Debug)]
+struct StoryArgs {
+    #[command(subcommand)]
+    action: StoryAction,
+}
+
+#[derive(Subcommand, Debug)]
+enum StoryAction {
+    Add(StoryAddArgs),
+    Update(StoryUpdateArgs),
+}
+
+#[derive(Args, Debug)]
+struct StoryAddArgs {
+    #[arg(long)]
+    id: String,
+    #[arg(long)]
+    title: String,
+    #[arg(long)]
+    lane: String,
+    #[arg(long)]
+    contract: Option<String>,
+    #[arg(long)]
+    notes: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct StoryUpdateArgs {
+    #[arg(long)]
+    id: String,
+    #[arg(long)]
+    status: Option<String>,
+    #[arg(long)]
+    evidence: Option<String>,
+    #[arg(long)]
+    unit: Option<String>,
+    #[arg(long)]
+    integration: Option<String>,
+    #[arg(long)]
+    e2e: Option<String>,
+    #[arg(long)]
+    platform: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct DecisionArgs {
+    #[command(subcommand)]
+    action: DecisionAction,
+}
+
+#[derive(Subcommand, Debug)]
+enum DecisionAction {
+    Add(DecisionAddArgs),
+    Verify { id: String },
+}
+
+#[derive(Args, Debug)]
+struct DecisionAddArgs {
+    #[arg(long)]
+    id: String,
+    #[arg(long)]
+    title: String,
+    #[arg(long, default_value = "accepted")]
+    status: String,
+    #[arg(long)]
+    doc: Option<String>,
+    #[arg(long)]
+    verify: Option<String>,
+    #[arg(long)]
+    predicted: Option<String>,
+    #[arg(long)]
+    notes: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct BacklogArgs {
+    #[command(subcommand)]
+    action: BacklogAction,
+}
+
+#[derive(Subcommand, Debug)]
+enum BacklogAction {
+    Add(BacklogAddArgs),
+    Close(BacklogCloseArgs),
+}
+
+#[derive(Args, Debug)]
+struct BacklogAddArgs {
+    #[arg(long)]
+    title: String,
+    #[arg(long = "while")]
+    discovered_while: Option<String>,
+    #[arg(long)]
+    pain: Option<String>,
+    #[arg(long)]
+    suggestion: Option<String>,
+    #[arg(long)]
+    risk: Option<String>,
+    #[arg(long)]
+    predicted: Option<String>,
+    #[arg(long)]
+    notes: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct BacklogCloseArgs {
+    #[arg(long)]
+    id: String,
+    #[arg(long, default_value = "implemented")]
+    status: String,
+    #[arg(long)]
+    outcome: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct TraceArgs {
+    #[arg(long)]
+    summary: String,
+    #[arg(long)]
+    intake: Option<String>,
+    #[arg(long)]
+    story: Option<String>,
+    #[arg(long)]
+    agent: Option<String>,
+    #[arg(long)]
+    outcome: Option<String>,
+    #[arg(long)]
+    duration: Option<String>,
+    #[arg(long)]
+    tokens: Option<String>,
+    #[arg(long)]
+    friction: Option<String>,
+    #[arg(long)]
+    actions: Option<String>,
+    #[arg(long = "read")]
+    files_read: Option<String>,
+    #[arg(long = "changed")]
+    files_changed: Option<String>,
+    #[arg(long)]
+    decisions: Option<String>,
+    #[arg(long)]
+    errors: Option<String>,
+    #[arg(long)]
+    notes: Option<String>,
+}
+
+#[derive(Args, Debug)]
 struct QueryArgs {
     #[command(subcommand)]
     view: QueryView,
@@ -52,10 +215,22 @@ struct QueryArgs {
 
 #[derive(Subcommand, Debug)]
 enum QueryView {
+    /// Test matrix.
+    Matrix,
+    /// Harness improvement proposals.
+    Backlog,
+    /// Decision records.
+    Decisions,
     /// Recent intake classifications.
     Intakes,
+    /// Recent traces.
+    Traces,
+    /// Traces with harness friction.
+    Friction,
     /// Summary counts.
     Stats,
+    /// Run arbitrary SQL.
+    Sql { query: Vec<String> },
 }
 
 #[derive(Debug, Error)]
@@ -66,27 +241,16 @@ pub enum InterfaceError {
     Infrastructure(#[from] crate::infrastructure::HarnessInfraError),
     #[error("could not determine current directory: {0}")]
     CurrentDir(std::io::Error),
+    #[error("query sql requires a SQL statement")]
+    EmptySql,
 }
 
 pub fn run(cli: Cli) -> Result<(), InterfaceError> {
     let service = HarnessService::new(resolve_context()?);
 
     match cli.command {
-        Command::Init => match service.init()? {
-            InitResult::Created { db_path } => {
-                println!("Creating harness database at {}", db_path.display());
-                println!("Schema version 1 applied.");
-            }
-            InitResult::Existing { db_path, version } => {
-                println!("Database already exists at {}", db_path.display());
-                println!("Current schema version: {version}");
-            }
-            InitResult::MigratedExisting { db_path } => {
-                println!("Database already exists at {}", db_path.display());
-                println!("No schema version found. Applying schema version 1.");
-                println!("Schema version 1 applied.");
-            }
-        },
+        Command::Init => print_init_result(service.init()?),
+        Command::Migrate => print_migrate_result(service.migrate()?),
         Command::Intake(args) => {
             let id = service.record_intake(IntakeInput {
                 input_type: InputType::from_str(&args.input_type)?,
@@ -99,13 +263,157 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             })?;
             println!("Intake #{id} recorded.");
         }
+        Command::Story(args) => match args.action {
+            StoryAction::Add(args) => {
+                service.add_story(StoryAddInput {
+                    id: args.id.clone(),
+                    title: args.title,
+                    risk_lane: RiskLane::from_str(&args.lane)?,
+                    contract_doc: args.contract,
+                    notes: args.notes,
+                })?;
+                println!("Story {} added.", args.id);
+            }
+            StoryAction::Update(args) => {
+                service.update_story(StoryUpdateInput {
+                    id: args.id.clone(),
+                    status: args.status,
+                    evidence: args.evidence,
+                    unit: parse_optional_bool("story update: --unit", args.unit)?,
+                    integration: parse_optional_bool(
+                        "story update: --integration",
+                        args.integration,
+                    )?,
+                    e2e: parse_optional_bool("story update: --e2e", args.e2e)?,
+                    platform: parse_optional_bool("story update: --platform", args.platform)?,
+                })?;
+                println!("Story {} updated.", args.id);
+            }
+        },
+        Command::Decision(args) => match args.action {
+            DecisionAction::Add(args) => {
+                service.add_decision(DecisionAddInput {
+                    id: args.id.clone(),
+                    title: args.title,
+                    status: args.status,
+                    doc_path: args.doc,
+                    verify_command: args.verify,
+                    predicted_impact: args.predicted,
+                    notes: args.notes,
+                })?;
+                println!("Decision {} added.", args.id);
+            }
+            DecisionAction::Verify { id } => {
+                let result = service.verify_decision(&id)?;
+                println!("Running: {}", result.command);
+                println!("Decision {id} verification: {}", result.result);
+            }
+        },
+        Command::Backlog(args) => match args.action {
+            BacklogAction::Add(args) => {
+                let id = service.add_backlog(BacklogAddInput {
+                    title: args.title,
+                    discovered_while: args.discovered_while,
+                    current_pain: args.pain,
+                    suggestion: args.suggestion,
+                    risk: args
+                        .risk
+                        .map(|value| RiskLane::from_str(&value))
+                        .transpose()?,
+                    predicted_impact: args.predicted,
+                    notes: args.notes,
+                })?;
+                println!("Backlog #{id} added.");
+            }
+            BacklogAction::Close(args) => {
+                let id = parse_optional_integer("backlog close: --id", Some(args.id))?
+                    .expect("value provided");
+                let status = args.status;
+                service.close_backlog(BacklogCloseInput {
+                    id,
+                    status: status.clone(),
+                    actual_outcome: args.outcome,
+                })?;
+                println!("Backlog #{id} closed as {status}.");
+            }
+        },
+        Command::Trace(args) => {
+            let id = service.record_trace(TraceInput {
+                task_summary: args.summary,
+                intake_id: parse_optional_integer("trace: --intake", args.intake)?,
+                story_id: args.story,
+                agent: args.agent,
+                outcome: args.outcome,
+                duration_seconds: parse_optional_integer("trace: --duration", args.duration)?,
+                token_estimate: parse_optional_integer("trace: --tokens", args.tokens)?,
+                friction: args.friction,
+                notes: args.notes,
+                actions: CsvList::from_optional(args.actions),
+                files_read: CsvList::from_optional(args.files_read),
+                files_changed: CsvList::from_optional(args.files_changed),
+                decisions: CsvList::from_optional(args.decisions),
+                errors: CsvList::from_optional(args.errors),
+            })?;
+            println!("Trace #{id} recorded.");
+        }
         Command::Query(args) => match args.view {
+            QueryView::Matrix => print_matrix(&service.query_matrix()?),
+            QueryView::Backlog => print_backlog(&service.query_backlog()?),
+            QueryView::Decisions => print_decisions(&service.query_decisions()?),
             QueryView::Intakes => print_intakes(&service.query_intakes()?),
+            QueryView::Traces => print_traces(&service.query_traces()?),
+            QueryView::Friction => print_friction(&service.query_friction()?),
             QueryView::Stats => print_stats(&service.query_stats()?),
+            QueryView::Sql { query } => {
+                if query.is_empty() {
+                    return Err(InterfaceError::EmptySql);
+                }
+                print_query_table(&service.query_sql(&query.join(" "))?);
+            }
         },
     }
 
     Ok(())
+}
+
+fn parse_optional_bool(
+    label: &str,
+    value: Option<String>,
+) -> Result<Option<BoolFlag>, InterfaceError> {
+    value
+        .map(|inner| BoolFlag::parse(label, &inner))
+        .transpose()
+        .map_err(InterfaceError::from)
+}
+
+fn print_init_result(result: InitResult) {
+    match result {
+        InitResult::Created { db_path } => {
+            println!("Creating harness database at {}", db_path.display());
+            println!("Schema version 1 applied.");
+        }
+        InitResult::Existing { db_path, version } => {
+            println!("Database already exists at {}", db_path.display());
+            println!("Current schema version: {version}");
+        }
+        InitResult::MigratedExisting { db_path } => {
+            println!("Database already exists at {}", db_path.display());
+            println!("No schema version found. Applying schema version 1.");
+            println!("Schema version 1 applied.");
+        }
+    }
+}
+
+fn print_migrate_result(result: MigrateResult) {
+    println!("Current schema version: {}", result.current_version);
+    if result.applied.is_empty() {
+        println!("Already up to date.");
+    } else {
+        for version in &result.applied {
+            println!("Applying migration {version}...");
+        }
+        println!("Applied {} migration(s).", result.applied.len());
+    }
 }
 
 fn resolve_context() -> Result<HarnessContext, InterfaceError> {
@@ -123,8 +431,83 @@ fn resolve_context() -> Result<HarnessContext, InterfaceError> {
     })
 }
 
+fn print_matrix(records: &[StoryMatrixRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.id.clone(),
+                record.title.clone(),
+                record.status.clone(),
+                record.unit.clone(),
+                record.integration.clone(),
+                record.e2e.clone(),
+                record.platform.clone(),
+                record.evidence.clone().unwrap_or_default(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        &[
+            "id", "title", "status", "unit", "integ", "e2e", "plat", "evidence",
+        ],
+        &rows,
+    );
+}
+
+fn print_backlog(records: &[BacklogRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.id.to_string(),
+                record.title.clone(),
+                record.status.clone(),
+                record.risk.clone().unwrap_or_default(),
+                record.predicted_impact.clone().unwrap_or_default(),
+                record.actual_outcome.clone().unwrap_or_default(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        &[
+            "id",
+            "title",
+            "status",
+            "risk",
+            "predicted_impact",
+            "actual_outcome",
+        ],
+        &rows,
+    );
+}
+
+fn print_decisions(records: &[DecisionRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.id.clone(),
+                record.title.clone(),
+                record.status.clone(),
+                record.last_verified_at.clone().unwrap_or_default(),
+                record.last_verified_result.clone().unwrap_or_default(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        &[
+            "id",
+            "title",
+            "status",
+            "last_verified_at",
+            "last_verified_result",
+        ],
+        &rows,
+    );
+}
+
 fn print_intakes(records: &[IntakeRecord]) {
-    let headers = ["id", "created_at", "input_type", "risk_lane", "summary"];
     let rows = records
         .iter()
         .map(|record| {
@@ -138,7 +521,53 @@ fn print_intakes(records: &[IntakeRecord]) {
         })
         .collect::<Vec<_>>();
 
-    print_table(&headers, &rows);
+    print_table(
+        &["id", "created_at", "input_type", "risk_lane", "summary"],
+        &rows,
+    );
+}
+
+fn print_traces(records: &[TraceRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.id.to_string(),
+                record.created_at.clone(),
+                record.outcome.clone().unwrap_or_default(),
+                record.task_summary.clone(),
+                record.harness_friction.clone().unwrap_or_default(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        &[
+            "id",
+            "created_at",
+            "outcome",
+            "task_summary",
+            "harness_friction",
+        ],
+        &rows,
+    );
+}
+
+fn print_friction(records: &[FrictionRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.id.to_string(),
+                record.created_at.clone(),
+                record.task_summary.clone(),
+                record.harness_friction.clone(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        &["id", "created_at", "task_summary", "harness_friction"],
+        &rows,
+    );
 }
 
 fn print_stats(stats: &HarnessStats) {
@@ -153,6 +582,11 @@ fn print_stats(stats: &HarnessStats) {
             stats.traces.to_string(),
         ]],
     );
+}
+
+fn print_query_table(table: &QueryTable) {
+    let headers = table.headers.iter().map(String::as_str).collect::<Vec<_>>();
+    print_table(&headers, &table.rows);
 }
 
 fn print_table(headers: &[&str], rows: &[Vec<String>]) {

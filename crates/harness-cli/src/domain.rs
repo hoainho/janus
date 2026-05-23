@@ -9,6 +9,10 @@ pub enum ParseHarnessValueError {
     InputType(String),
     #[error("unknown lane '{0}'. Use: tiny, normal, or high-risk")]
     RiskLane(String),
+    #[error("{0} must be an integer")]
+    Integer(String),
+    #[error("{0} must be 0 or 1")]
+    BoolFlag(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -92,6 +96,54 @@ pub struct IntakeRecord {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct StoryMatrixRecord {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub unit: String,
+    pub integration: String,
+    pub e2e: String,
+    pub platform: String,
+    pub evidence: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BacklogRecord {
+    pub id: i64,
+    pub title: String,
+    pub status: String,
+    pub risk: Option<String>,
+    pub predicted_impact: Option<String>,
+    pub actual_outcome: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct DecisionRecord {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub last_verified_at: Option<String>,
+    pub last_verified_result: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TraceRecord {
+    pub id: i64,
+    pub created_at: String,
+    pub outcome: Option<String>,
+    pub task_summary: String,
+    pub harness_friction: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct FrictionRecord {
+    pub id: i64,
+    pub created_at: String,
+    pub task_summary: String,
+    pub harness_friction: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct HarnessStats {
     pub intakes: i64,
     pub stories: i64,
@@ -108,25 +160,52 @@ impl CsvList {
         Self(value.filter(|item| !item.is_empty()))
     }
 
-    pub fn as_json_text(&self) -> String {
-        match &self.0 {
-            Some(value) => {
-                let escaped_items = value
-                    .split(',')
-                    .map(|item| format!("\"{}\"", escape_json_string(item.trim())))
-                    .collect::<Vec<_>>()
-                    .join(",");
-                format!("[{escaped_items}]")
-            }
-            None => "null".to_owned(),
-        }
+    pub fn as_json_text(&self) -> Option<String> {
+        self.0.as_ref().map(|value| {
+            let escaped_items = value
+                .split(',')
+                .map(|item| format!("\"{}\"", escape_json_string(item.trim())))
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("[{escaped_items}]")
+        })
+    }
+
+    pub fn as_json_text_or_null_literal(&self) -> String {
+        self.as_json_text().unwrap_or_else(|| "null".to_owned())
     }
 }
 
 impl fmt::Display for CsvList {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.as_json_text())
+        formatter.write_str(&self.as_json_text_or_null_literal())
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoolFlag(pub i64);
+
+impl BoolFlag {
+    pub fn parse(label: &str, value: &str) -> Result<Self, ParseHarnessValueError> {
+        match value {
+            "0" => Ok(Self(0)),
+            "1" => Ok(Self(1)),
+            _ => Err(ParseHarnessValueError::BoolFlag(label.to_owned())),
+        }
+    }
+}
+
+pub fn parse_optional_integer(
+    label: &str,
+    value: Option<String>,
+) -> Result<Option<i64>, ParseHarnessValueError> {
+    value
+        .map(|inner| {
+            inner
+                .parse::<i64>()
+                .map_err(|_| ParseHarnessValueError::Integer(label.to_owned()))
+        })
+        .transpose()
 }
 
 fn escape_json_string(value: &str) -> String {
@@ -159,6 +238,14 @@ pub fn normalize_token(value: &str) -> String {
     normalized
 }
 
+pub fn yes_no(value: i64) -> String {
+    if value == 1 {
+        "yes".to_owned()
+    } else {
+        "no".to_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,9 +271,19 @@ mod tests {
     #[test]
     fn renders_csv_as_json_text() {
         assert_eq!(
-            CsvList::from_optional(Some("auth, data model".to_owned())).as_json_text(),
+            CsvList::from_optional(Some("auth, data model".to_owned()))
+                .as_json_text_or_null_literal(),
             "[\"auth\",\"data model\"]"
         );
-        assert_eq!(CsvList::from_optional(None).as_json_text(), "null");
+        assert_eq!(
+            CsvList::from_optional(None).as_json_text_or_null_literal(),
+            "null"
+        );
+    }
+
+    #[test]
+    fn parses_bool_flags() {
+        assert_eq!(BoolFlag::parse("--unit", "1").unwrap(), BoolFlag(1));
+        assert!(BoolFlag::parse("--unit", "yes").is_err());
     }
 }

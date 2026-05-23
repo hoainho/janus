@@ -32,27 +32,61 @@ the same durable-layer behavior.
 cargo fmt --check
 cargo test --workspace
 bash -n scripts/harness scripts/install-harness.sh
+scripts/build-harness-cli-release.sh
 scripts/harness query stats
 tmpdir=$(mktemp -d)
 HARNESS_DB="$tmpdir/harness.db" scripts/harness init
+HARNESS_DB="$tmpdir/harness.db" scripts/harness migrate
 HARNESS_DB="$tmpdir/harness.db" scripts/harness intake --type "Harness improvement" --summary "Rust delegated intake smoke" --lane high-risk --flags "public contracts" --docs "docs/decisions/0005-prebuilt-rust-harness-cli" --story US-002
+HARNESS_DB="$tmpdir/harness.db" scripts/harness story add --id US-SMOKE --title "Rust parity smoke story" --lane high-risk --contract docs/decisions/0005-prebuilt-rust-harness-cli
+HARNESS_DB="$tmpdir/harness.db" scripts/harness story update --id US-SMOKE --status implemented --evidence "rust smoke" --unit 1 --integration 1
+HARNESS_DB="$tmpdir/harness.db" scripts/harness decision add --id 9999-smoke --title "Smoke Decision" --status accepted --doc docs/decisions/0005-prebuilt-rust-harness-cli --verify "true"
+HARNESS_DB="$tmpdir/harness.db" scripts/harness decision verify 9999-smoke
+HARNESS_DB="$tmpdir/harness.db" scripts/harness backlog add --title "Smoke backlog" --pain "Need proof" --risk normal --predicted "Proof exists"
+HARNESS_DB="$tmpdir/harness.db" scripts/harness backlog close --id 1 --status implemented --outcome "closed"
+HARNESS_DB="$tmpdir/harness.db" scripts/harness trace --summary "Smoke trace" --intake 1 --story US-SMOKE --agent Codex --outcome completed --actions "one,two" --friction "none"
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query matrix
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query backlog
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query decisions
 HARNESS_DB="$tmpdir/harness.db" scripts/harness query intakes
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query traces
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query friction
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query stats
+HARNESS_DB="$tmpdir/harness.db" scripts/harness query sql "SELECT COUNT(*) AS story_count FROM story;"
 rm -rf "$tmpdir"
+target=$(mktemp -d)
+scripts/install-harness.sh --directory "$target" --yes
+"$target/scripts/harness" init
+"$target/scripts/harness" intake --type "Harness improvement" --summary "installed binary smoke" --lane tiny
+"$target/scripts/harness" query stats
+test -x "$target/scripts/bin/harness-cli"
+rm -rf "$target"
 ```
 
 ## Acceptance Evidence
 
 - `cargo fmt --check`: passed.
-- `cargo test --workspace`: passed, 6 tests.
+- `cargo test --workspace`: passed, 8 tests.
 - `bash -n scripts/harness scripts/install-harness.sh`: passed.
-- `scripts/harness query stats`: passed through the Rust delegated `query
-  stats` slice.
-- Temporary database smoke: `scripts/harness init`, `scripts/harness intake`,
-  and `scripts/harness query intakes` passed through the Rust delegated slice.
+- `scripts/build-harness-cli-release.sh`: passed and wrote
+  `dist/harness-cli-macos-arm64` plus checksum.
+- Temporary database smoke passed through the Rust delegated command paths:
+  `init`, `migrate`, `intake`, `story add`, `story update`, `decision add`,
+  `decision verify`, `backlog add`, `backlog close`, `trace`, `query matrix`,
+  `query backlog`, `query decisions`, `query intakes`, `query traces`, `query
+  friction`, `query stats`, and `query sql`.
+- Installer E2E passed using the local `dist` release source. It downloaded
+  `scripts/bin/harness-cli`, verified the checksum, ran `scripts/harness init`,
+  recorded an intake, and queried stats without relying on a local Cargo build
+  inside the target project.
+- Checksum failure test passed: a corrupt `.sha256` file caused the installer
+  to stop before accepting the binary.
+- `--skip-cli-download` test passed: installer skipped the binary and
+  `scripts/harness init` still worked through Bash fallback.
+- Existing `.gitignore` merge test passed: custom rules were preserved while
+  `harness.db` and `scripts/bin/harness-cli` ignore rules were appended.
 
 Remaining evidence needed before story completion:
 
-- Prebuilt release artifact generation.
-- Installer platform detection and binary download.
-- Checksum verification.
-- Parity for the remaining Bash command groups.
+- Publish release artifacts for all supported targets.
+- `import brownfield` parity or an explicit decision to leave it as Bash-only.

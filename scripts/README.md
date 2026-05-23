@@ -25,6 +25,11 @@ file (`harness.db`) is `.gitignore`d.
 
 Requires: `sqlite3`.
 
+When the Rust delegated CLI is available for every routine command, `sqlite3`
+is still required by the Bash fallback and by humans who inspect the database
+directly. The future prebuilt Rust binary should reduce this runtime
+requirement for normal harness use.
+
 ### Rust CLI Migration
 
 `scripts/harness` can delegate migrated command slices to the Rust CLI when a
@@ -35,10 +40,27 @@ Current migrated commands:
 
 ```bash
 scripts/harness init
+scripts/harness migrate
 scripts/harness intake ...
+scripts/harness story add ...
+scripts/harness story update ...
+scripts/harness decision add ...
+scripts/harness decision verify ...
+scripts/harness backlog add ...
+scripts/harness backlog close ...
+scripts/harness trace ...
+scripts/harness query matrix
+scripts/harness query backlog
+scripts/harness query decisions
 scripts/harness query intakes
+scripts/harness query traces
+scripts/harness query friction
 scripts/harness query stats
+scripts/harness query sql ...
 ```
+
+`scripts/harness import brownfield` still uses the Bash implementation while
+the migration focuses on routine durable-layer operations.
 
 Set `HARNESS_DISABLE_RUST_CLI=1` to force the Bash implementation while parity
 work is in progress.
@@ -69,6 +91,12 @@ application source folders, package scripts, CI, tests, platform shells, or fake
 validation commands. The installer script is not part of the installed project
 payload.
 
+By default the installer also downloads the prebuilt Rust Harness CLI for the
+current platform into `scripts/bin/harness-cli` and verifies its `.sha256`
+checksum before making it executable. Set `HARNESS_CLI_BASE_URL` to point at an
+alternate release artifact directory, or pass `--skip-cli-download` to install
+only the Bash fallback.
+
 ## Schema Migrations
 
 Migration files live under `scripts/schema/` and are named `NNN-description.sql`
@@ -94,4 +122,26 @@ test:platform
 
 test:release
   full suite, log checks, and performance smoke
+```
+
+## Release Packaging
+
+Build the current-platform Rust CLI release artifact from the source repo:
+
+```bash
+scripts/build-harness-cli-release.sh
+```
+
+The script writes `dist/harness-cli-<platform>` and
+`dist/harness-cli-<platform>.sha256`. Supported labels are:
+
+- `macos-arm64`
+- `macos-x64`
+- `linux-x64`
+- `linux-arm64`
+
+For cross-compilation, pass a Cargo target triple:
+
+```bash
+scripts/build-harness-cli-release.sh --target x86_64-unknown-linux-gnu
 ```

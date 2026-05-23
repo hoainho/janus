@@ -5,3 +5,7 @@ harness.db-shm
 
 # Rust build output for harness tooling.
 target/
+dist/
+
+# Downloaded Harness CLI binary for installed project instances.
+scripts/bin/harness-cli
