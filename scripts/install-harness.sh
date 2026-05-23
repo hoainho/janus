@@ -597,11 +597,7 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DI
 fi
 
 if [ -z "$CLI_BASE_URL" ]; then
-  if [ "$SOURCE_MODE" = "local" ]; then
-    CLI_BASE_URL="file://$SOURCE_ROOT/dist"
-  else
-    CLI_BASE_URL="https://github.com/hoangnb24/harness-experimental/releases/latest/download"
-  fi
+  CLI_BASE_URL="https://github.com/hoangnb24/harness-experimental/releases/latest/download"
 fi
 
 if [ "$YES" -eq 0 ] && can_prompt; then

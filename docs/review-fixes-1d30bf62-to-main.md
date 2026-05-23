@@ -23,7 +23,8 @@ Harness intake: `#34`
 - Validation:
   - `cargo fmt --check`
   - `cargo test --workspace` passed with 10 tests.
-  - `bash -n scripts/install-harness.sh scripts/harness scripts/build-harness-cli-release.sh`
+  - Separate `bash -n` checks for `scripts/install-harness.sh`,
+    `scripts/harness`, and `scripts/build-harness-cli-release.sh`.
   - `git diff --check`
   - `scripts/harness query matrix`
 
@@ -40,7 +41,8 @@ Harness intake: `#34`
 - Validation:
   - Temp `--override --refresh-agent-shim --yes` install preserved the original
     `AGENTS.md` in `.harness-backup/.../AGENTS.md`.
-  - `bash -n scripts/install-harness.sh scripts/harness scripts/build-harness-cli-release.sh`
+  - Separate `bash -n` checks for `scripts/install-harness.sh`,
+    `scripts/harness`, and `scripts/build-harness-cli-release.sh`.
   - `cargo fmt --check`
   - `cargo test --workspace` passed with 10 tests.
   - `git diff --check`
@@ -69,7 +71,36 @@ Harness intake: `#34`
 - Validation:
   - Temp existing-Harness `--merge --yes` install preserved the original
     `scripts/bin/harness-cli` checksum and content.
-  - `bash -n scripts/install-harness.sh scripts/harness scripts/build-harness-cli-release.sh`
+  - Separate `bash -n` checks for `scripts/install-harness.sh`,
+    `scripts/harness`, and `scripts/build-harness-cli-release.sh`.
+  - `cargo fmt --check`
+  - `cargo test --workspace` passed with 10 tests.
+  - `git diff --check`
+  - `scripts/harness query matrix`
+
+## Pass 5
+
+- Status: findings fixed; validation in progress.
+- Command: `codex review --base 1d30bf62a30cd7e65ebcefed765b3f924d381b49`
+- Findings:
+  - P2: source-checkout installs defaulted the CLI download source to local
+    `dist/`, which is ignored and may be absent in a fresh clone.
+  - P3: the release workflow used one `bash -n` invocation with three script
+    paths, which only syntax-checks the first script.
+- Fixes:
+  - Default `HARNESS_CLI_BASE_URL` to the published release URL even when the
+    Harness source files are local; keep local artifact directories available
+    through explicit `HARNESS_CLI_BASE_URL=file:///.../dist`.
+  - Changed the release workflow and validation docs to run `bash -n`
+    separately for each shell script.
+  - Updated US-002 durable evidence to name the source-checkout installer smoke
+    and separate shell syntax checks.
+- Validation:
+  - Temp source-checkout install succeeded with local `dist/` temporarily moved
+    away; the installer downloaded from the published release URL and installed
+    an executable `scripts/bin/harness-cli`.
+  - Separate `bash -n` checks for `scripts/install-harness.sh`,
+    `scripts/harness`, and `scripts/build-harness-cli-release.sh`.
   - `cargo fmt --check`
   - `cargo test --workspace` passed with 10 tests.
   - `git diff --check`
