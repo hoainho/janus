@@ -145,3 +145,17 @@ For cross-compilation, pass a Cargo target triple:
 ```bash
 scripts/build-harness-cli-release.sh --target x86_64-unknown-linux-gnu
 ```
+
+GitHub releases are produced by
+`.github/workflows/harness-cli-release.yml`. Push a tag matching `v*` or
+`harness-cli-v*` to run the verification job, build all supported targets on
+native hosted runners, and upload these release assets:
+
+- `harness-cli-macos-arm64`
+- `harness-cli-macos-arm64.sha256`
+- `harness-cli-macos-x64`
+- `harness-cli-macos-x64.sha256`
+- `harness-cli-linux-x64`
+- `harness-cli-linux-x64.sha256`
+- `harness-cli-linux-arm64`
+- `harness-cli-linux-arm64.sha256`

@@ -68,6 +68,10 @@ rm -rf "$target"
 - `cargo fmt --check`: passed.
 - `cargo test --workspace`: passed, 8 tests.
 - `bash -n scripts/harness scripts/install-harness.sh`: passed.
+- `.github/workflows/harness-cli-release.yml`: added to verify the workspace,
+  build the four supported CLI release targets on hosted native runners, and
+  publish `harness-cli-<platform>` plus `.sha256` assets to the GitHub Release
+  for `v*` or `harness-cli-v*` tags.
 - `scripts/build-harness-cli-release.sh`: passed and wrote
   `dist/harness-cli-macos-arm64` plus checksum.
 - Temporary database smoke passed through the Rust delegated command paths:
@@ -88,5 +92,6 @@ rm -rf "$target"
 
 Remaining evidence needed before story completion:
 
-- Publish release artifacts for all supported targets.
+- Run the release workflow from a real tag and confirm the GitHub Release
+  contains all eight expected assets for the four supported targets.
 - `import brownfield` parity or an explicit decision to leave it as Bash-only.
