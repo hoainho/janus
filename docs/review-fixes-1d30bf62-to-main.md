@@ -105,3 +105,19 @@ Harness intake: `#34`
   - `cargo test --workspace` passed with 10 tests.
   - `git diff --check`
   - `scripts/harness query matrix`
+
+## Pass 6
+
+- Status: clean review.
+- Command: `codex review --base 1d30bf62a30cd7e65ebcefed765b3f924d381b49`
+- Result: no discrete regression findings.
+- Reviewer note: the Rust CLI, installer changes, and release workflow appeared
+  internally consistent, and validation commands exercised during review passed.
+- Fixes: none.
+- Validation:
+  - Separate `bash -n` checks for `scripts/install-harness.sh`,
+    `scripts/harness`, and `scripts/build-harness-cli-release.sh`.
+  - `cargo fmt --check`
+  - `cargo test --workspace` passed with 10 tests.
+  - `git diff --check`
+  - `scripts/harness query matrix`
