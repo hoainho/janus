@@ -41,6 +41,7 @@ Current migrated commands:
 ```bash
 scripts/harness init
 scripts/harness migrate
+scripts/harness import brownfield
 scripts/harness intake ...
 scripts/harness story add ...
 scripts/harness story update ...
@@ -59,8 +60,11 @@ scripts/harness query stats
 scripts/harness query sql ...
 ```
 
-`scripts/harness import brownfield` still uses the Bash implementation while
-the migration focuses on routine durable-layer operations.
+`scripts/harness import brownfield` seeds or refreshes the durable database
+from existing Harness v0 markdown in `docs/TEST_MATRIX.md`,
+`docs/decisions/`, and `docs/HARNESS_BACKLOG.md`. This keeps already-installed
+Harness repos on the Rust CLI path without losing their populated operating
+docs.
 
 Set `HARNESS_DISABLE_RUST_CLI=1` to force the Bash implementation while parity
 work is in progress.
