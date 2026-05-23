@@ -55,3 +55,22 @@ Harness intake: `#34`
 - Findings: unavailable.
 - Fixes: none.
 - Validation: final no-findings proof is still pending.
+
+## Pass 4
+
+- Status: finding fixed; validation in progress.
+- Command: `codex review --base 1d30bf62a30cd7e65ebcefed765b3f924d381b49`
+- Findings:
+  - P2: `--merge` installs preserved normal Harness files but still overwrote
+    an existing `scripts/bin/harness-cli` binary without `--force`.
+- Fixes:
+  - Made `install_harness_cli_binary` skip an existing downloaded CLI binary
+    during merge mode unless `--force` is provided.
+- Validation:
+  - Temp existing-Harness `--merge --yes` install preserved the original
+    `scripts/bin/harness-cli` checksum and content.
+  - `bash -n scripts/install-harness.sh scripts/harness scripts/build-harness-cli-release.sh`
+  - `cargo fmt --check`
+  - `cargo test --workspace` passed with 10 tests.
+  - `git diff --check`
+  - `scripts/harness query matrix`

@@ -373,6 +373,12 @@ install_harness_cli_binary() {
   checksum_url="$binary_url.sha256"
   target="$TARGET_DIR/scripts/bin/harness-cli"
 
+  if [ -e "$target" ] && [ "$CONFLICT_ACTION" = "merge" ] && [ "$FORCE" -eq 0 ]; then
+    log "skip     scripts/bin/harness-cli (merge keeps existing file)"
+    SKIPPED=$((SKIPPED + 1))
+    return 0
+  fi
+
   if [ "$DRY_RUN" -eq 1 ]; then
     log "download $binary_name -> scripts/bin/harness-cli"
     log "verify   $binary_name.sha256"
