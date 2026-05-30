@@ -364,6 +364,40 @@ download_file() {
   curl -fsSL "$url" -o "$target" || fail "Could not download $url"
 }
 
+read_cli_release_tag() {
+  local tag_file="scripts/harness-cli-release-tag"
+  local tag=""
+
+  if [ "$SOURCE_MODE" = "local" ]; then
+    if [ -f "$SOURCE_ROOT/$tag_file" ]; then
+      tag="$(awk 'NF && $1 !~ /^#/ { print $1; exit }' "$SOURCE_ROOT/$tag_file")"
+    fi
+  else
+    local tmp_file
+    tmp_file="$(mktemp)"
+    if curl -fsSL "$SOURCE_BASE_URL/$tag_file" -o "$tmp_file" 2>/dev/null; then
+      tag="$(awk 'NF && $1 !~ /^#/ { print $1; exit }' "$tmp_file")"
+    fi
+    rm -f "$tmp_file"
+  fi
+
+  printf '%s\n' "$tag"
+}
+
+default_cli_base_url() {
+  local release_tag="${HARNESS_CLI_RELEASE_TAG:-}"
+
+  if [ -z "$release_tag" ]; then
+    release_tag="$(read_cli_release_tag)"
+  fi
+
+  if [ -n "$release_tag" ] && [ "$release_tag" != "latest" ]; then
+    printf 'https://github.com/hoangnb24/harness-experimental/releases/download/%s\n' "$release_tag"
+  else
+    printf 'https://github.com/hoangnb24/harness-experimental/releases/latest/download\n'
+  fi
+}
+
 install_harness_cli_binary() {
   [ "$INSTALL_RUST_CLI" -eq 1 ] || return 0
 
@@ -598,7 +632,7 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DI
 fi
 
 if [ -z "$CLI_BASE_URL" ]; then
-  CLI_BASE_URL="https://github.com/hoangnb24/harness-experimental/releases/latest/download"
+  CLI_BASE_URL="$(default_cli_base_url)"
 fi
 
 if [ "$YES" -eq 0 ] && can_prompt; then
