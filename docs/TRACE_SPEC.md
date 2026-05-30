@@ -188,6 +188,9 @@ Why this is insufficient for normal-lane Phase 2 work:
 Before the final response, check:
 
 - The trace tier matches the lane.
+- Run `scripts/harness score-trace` after recording the trace to mechanically
+  verify that the latest trace meets its linked intake lane requirement. Use
+  `scripts/harness score-trace --id N` when reviewing a specific trace.
 - `files_changed` matches the actual changed-file set at a useful level.
 - `errors` names real blockers or is `none` for Detailed traces when the
   current CLI is used.

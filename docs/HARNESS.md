@@ -109,6 +109,7 @@ scripts/bin/harness-cli intake  --type <type> --summary <text> --lane <lane>
 scripts/bin/harness-cli story   add --id <id> --title <text> --lane <lane>
 scripts/bin/harness-cli story   update --id <id> --status <status>
 scripts/bin/harness-cli trace   --summary <text> --outcome <outcome>
+scripts/bin/harness-cli score-trace
 scripts/bin/harness-cli query   matrix
 scripts/bin/harness-cli query   backlog
 scripts/bin/harness-cli query   stats
@@ -189,6 +190,17 @@ either improve the harness directly or record the friction:
 scripts/bin/harness-cli backlog add --title "<short name>" --pain "<what was hard>"
 ```
 
+Use the backlog outcome loop for improvements that are expected to change agent
+behavior or validation results:
+
+1. When creating the backlog item, fill `--predicted` with the measurable
+   impact expected from the improvement.
+2. When closing the item, fill `--outcome` with the actual measured result or
+   review evidence.
+3. Use `scripts/harness query backlog --open` to review proposed and accepted
+   items, and `scripts/harness query backlog --closed` to compare predictions
+   with outcomes after implementation.
+
 The `harness_friction` field on traces also captures per-task friction so
 patterns can be queried later:
 
@@ -210,7 +222,9 @@ For every task:
    changed.
 7. Record a trace with `scripts/bin/harness-cli trace`, using
    `docs/TRACE_SPEC.md` for the expected trace tier and field depth.
-8. If harness friction was found, either fix it directly or record it with
+8. Run `scripts/harness score-trace` when the CLI supports it to confirm the
+   trace meets the linked intake lane requirement.
+9. If harness friction was found, either fix it directly or record it with
    `scripts/bin/harness-cli backlog add`.
 
 ## Harness Change Policy

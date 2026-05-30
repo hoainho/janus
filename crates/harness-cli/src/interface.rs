@@ -11,8 +11,9 @@ use crate::application::{
     StoryUpdateInput, TraceInput,
 };
 use crate::domain::{
-    parse_optional_integer, BacklogRecord, BoolFlag, CsvList, DecisionRecord, FrictionRecord,
-    HarnessStats, InputType, IntakeRecord, RiskLane, StoryMatrixRecord, TraceRecord,
+    parse_optional_integer, BacklogFilter, BacklogRecord, BoolFlag, CsvList, DecisionRecord,
+    FrictionRecord, HarnessStats, InputType, IntakeRecord, RiskLane, StoryMatrixRecord,
+    TraceQualityTier, TraceRecord, TraceScoreResult,
 };
 
 #[derive(Parser, Debug)]
@@ -41,6 +42,8 @@ enum Command {
     Backlog(BacklogArgs),
     /// Record an agent execution trace.
     Trace(TraceArgs),
+    /// Score a trace against the trace quality tiers.
+    ScoreTrace(ScoreTraceArgs),
     /// Query harness data.
     Query(QueryArgs),
 }
@@ -222,9 +225,26 @@ struct TraceArgs {
 }
 
 #[derive(Args, Debug)]
+struct ScoreTraceArgs {
+    /// Score a specific trace id. Defaults to the latest trace.
+    #[arg(long)]
+    id: Option<String>,
+}
+
+#[derive(Args, Debug)]
 struct QueryArgs {
     #[command(subcommand)]
     view: QueryView,
+}
+
+#[derive(Args, Debug)]
+struct BacklogQueryArgs {
+    /// Show only proposed and accepted backlog items.
+    #[arg(long, conflicts_with = "closed")]
+    open: bool,
+    /// Show only implemented and rejected backlog items.
+    #[arg(long)]
+    closed: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -232,7 +252,7 @@ enum QueryView {
     /// Test matrix.
     Matrix,
     /// Harness improvement proposals.
-    Backlog,
+    Backlog(BacklogQueryArgs),
     /// Decision records.
     Decisions,
     /// Recent intake classifications.
@@ -375,9 +395,19 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             })?;
             println!("Trace #{id} recorded.");
         }
+        Command::ScoreTrace(args) => {
+            let id = parse_optional_integer("score-trace: --id", args.id)?;
+            let result = service.score_trace(id)?;
+            print_trace_score(&result, id.is_none());
+            if !result.meets_requirement {
+                std::process::exit(1);
+            }
+        }
         Command::Query(args) => match args.view {
             QueryView::Matrix => print_matrix(&service.query_matrix()?),
-            QueryView::Backlog => print_backlog(&service.query_backlog()?),
+            QueryView::Backlog(args) => {
+                print_backlog(&service.query_backlog(backlog_filter(&args))?)
+            }
             QueryView::Decisions => print_decisions(&service.query_decisions()?),
             QueryView::Intakes => print_intakes(&service.query_intakes()?),
             QueryView::Traces => print_traces(&service.query_traces()?),
@@ -393,6 +423,78 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
     }
 
     Ok(())
+}
+
+fn print_trace_score(result: &TraceScoreResult, latest: bool) {
+    if latest {
+        println!("Trace #{} (latest):", result.trace_id);
+    } else {
+        println!("Trace #{}:", result.trace_id);
+    }
+    println!(
+        "  Tier achieved: {} ({}/3)",
+        result.achieved.label(),
+        result.achieved.score()
+    );
+
+    match (&result.risk_lane, result.required) {
+        (Some(lane), Some(required)) => {
+            println!(
+                "  Lane: {} -> required tier: {} ({}/3)",
+                lane,
+                required.label(),
+                required.score()
+            );
+            if result.meets_requirement {
+                println!("  MEETS REQUIREMENT");
+            } else {
+                println!("  BELOW REQUIREMENT");
+            }
+        }
+        _ => {
+            println!("  Lane: unknown (no linked intake)");
+        }
+    }
+
+    print_missing_fields(
+        "minimal",
+        TraceQualityTier::Minimal,
+        &result.missing_minimal,
+    );
+    print_missing_fields(
+        "standard",
+        TraceQualityTier::Standard,
+        &result.missing_standard,
+    );
+    print_missing_fields(
+        "detailed",
+        TraceQualityTier::Detailed,
+        &result.missing_detailed,
+    );
+}
+
+fn print_missing_fields(label: &str, tier: TraceQualityTier, fields: &[String]) {
+    if fields.is_empty() {
+        return;
+    }
+    println!();
+    println!("  Missing for {label}:");
+    for field in fields {
+        println!("    - {field}");
+    }
+    if tier == TraceQualityTier::Detailed {
+        println!();
+    }
+}
+
+fn backlog_filter(args: &BacklogQueryArgs) -> BacklogFilter {
+    if args.open {
+        BacklogFilter::Open
+    } else if args.closed {
+        BacklogFilter::Closed
+    } else {
+        BacklogFilter::All
+    }
 }
 
 fn print_brownfield_import_result(result: BrownfieldImportResult) {
@@ -588,13 +690,22 @@ fn print_friction(records: &[FrictionRecord]) {
             vec![
                 record.id.to_string(),
                 record.created_at.clone(),
+                record.risk_lane.clone().unwrap_or_else(|| "-".to_owned()),
+                record.input_type.clone().unwrap_or_else(|| "-".to_owned()),
                 record.task_summary.clone(),
                 record.harness_friction.clone(),
             ]
         })
         .collect::<Vec<_>>();
     print_table(
-        &["id", "created_at", "task_summary", "harness_friction"],
+        &[
+            "id",
+            "created_at",
+            "risk_lane",
+            "input_type",
+            "task_summary",
+            "harness_friction",
+        ],
         &rows,
     );
 }

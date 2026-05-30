@@ -117,6 +117,13 @@ pub struct BacklogRecord {
     pub actual_outcome: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BacklogFilter {
+    All,
+    Open,
+    Closed,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct DecisionRecord {
     pub id: String,
@@ -135,10 +142,185 @@ pub struct TraceRecord {
     pub harness_friction: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TraceQualityTier {
+    Incomplete = 0,
+    Minimal = 1,
+    Standard = 2,
+    Detailed = 3,
+}
+
+impl TraceQualityTier {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Incomplete => "incomplete",
+            Self::Minimal => "minimal",
+            Self::Standard => "standard",
+            Self::Detailed => "detailed",
+        }
+    }
+
+    pub fn score(self) -> u8 {
+        self as u8
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TraceScoreSource {
+    pub id: i64,
+    pub task_summary: String,
+    pub intake_id: Option<i64>,
+    pub risk_lane: Option<String>,
+    pub agent: Option<String>,
+    pub actions_taken: Option<String>,
+    pub files_read: Option<String>,
+    pub files_changed: Option<String>,
+    pub decisions_made: Option<String>,
+    pub errors: Option<String>,
+    pub outcome: Option<String>,
+    pub duration_seconds: Option<i64>,
+    pub token_estimate: Option<i64>,
+    pub harness_friction: Option<String>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TraceScoreResult {
+    pub trace_id: i64,
+    pub achieved: TraceQualityTier,
+    pub risk_lane: Option<String>,
+    pub required: Option<TraceQualityTier>,
+    pub meets_requirement: bool,
+    pub missing_minimal: Vec<String>,
+    pub missing_standard: Vec<String>,
+    pub missing_detailed: Vec<String>,
+}
+
+pub fn required_trace_tier_for_lane(risk_lane: &str) -> Option<TraceQualityTier> {
+    match risk_lane {
+        "tiny" => Some(TraceQualityTier::Minimal),
+        "normal" => Some(TraceQualityTier::Standard),
+        "high_risk" => Some(TraceQualityTier::Detailed),
+        _ => None,
+    }
+}
+
+pub fn score_trace(source: TraceScoreSource) -> TraceScoreResult {
+    let missing_minimal = missing_minimal_fields(&source);
+    let missing_standard = if missing_minimal.is_empty() {
+        missing_standard_fields(&source)
+    } else {
+        Vec::new()
+    };
+    let missing_detailed = if missing_minimal.is_empty() && missing_standard.is_empty() {
+        missing_detailed_fields(&source)
+    } else {
+        Vec::new()
+    };
+
+    let achieved = if !missing_minimal.is_empty() {
+        TraceQualityTier::Incomplete
+    } else if !missing_standard.is_empty() {
+        TraceQualityTier::Minimal
+    } else if !missing_detailed.is_empty() {
+        TraceQualityTier::Standard
+    } else {
+        TraceQualityTier::Detailed
+    };
+    let required = source
+        .risk_lane
+        .as_deref()
+        .and_then(required_trace_tier_for_lane);
+    let meets_requirement = required.is_none_or(|tier| achieved >= tier);
+
+    TraceScoreResult {
+        trace_id: source.id,
+        achieved,
+        risk_lane: source.risk_lane,
+        required,
+        meets_requirement,
+        missing_minimal,
+        missing_standard,
+        missing_detailed,
+    }
+}
+
+fn missing_minimal_fields(source: &TraceScoreSource) -> Vec<String> {
+    let mut missing = Vec::new();
+    if source.task_summary.trim().len() < 10 {
+        missing.push("task_summary: missing or shorter than 10 characters".to_owned());
+    }
+    if blank(&source.outcome) {
+        missing.push("outcome: null".to_owned());
+    }
+    missing
+}
+
+fn missing_standard_fields(source: &TraceScoreSource) -> Vec<String> {
+    let mut missing = Vec::new();
+    if blank(&source.agent) {
+        missing.push("agent: empty".to_owned());
+    }
+    if short_json_list(&source.actions_taken) {
+        missing.push("actions_taken: empty".to_owned());
+    }
+    if short_json_list(&source.files_read) {
+        missing.push("files_read: empty".to_owned());
+    }
+    if source.files_changed.is_none() {
+        missing.push("files_changed: null".to_owned());
+    }
+    if source.errors.is_none() && source.harness_friction.is_none() {
+        missing.push("errors or harness_friction: both null".to_owned());
+    }
+    missing
+}
+
+fn missing_detailed_fields(source: &TraceScoreSource) -> Vec<String> {
+    let mut missing = Vec::new();
+    if short_json_list(&source.decisions_made) {
+        missing.push("decisions_made: empty".to_owned());
+    }
+    if source.errors.is_none() {
+        missing.push("errors: null".to_owned());
+    }
+    if source.harness_friction.is_none() {
+        missing.push("harness_friction: null".to_owned());
+    }
+    if source.duration_seconds.is_none() && !notes_explain_missing(&source.notes, "duration") {
+        missing.push("duration_seconds: null (no explanation in notes)".to_owned());
+    }
+    if source.token_estimate.is_none() && !notes_explain_missing(&source.notes, "token") {
+        missing.push("token_estimate: null (no explanation in notes)".to_owned());
+    }
+    missing
+}
+
+fn blank(value: &Option<String>) -> bool {
+    value.as_deref().map(str::trim).unwrap_or("").is_empty()
+}
+
+fn short_json_list(value: &Option<String>) -> bool {
+    value.as_deref().map(str::trim).unwrap_or("").len() <= 2
+}
+
+fn notes_explain_missing(notes: &Option<String>, field: &str) -> bool {
+    let Some(notes) = notes.as_deref() else {
+        return false;
+    };
+    let lower = notes.to_ascii_lowercase();
+    lower.contains(field)
+        && (lower.contains("unavailable")
+            || lower.contains("not available")
+            || lower.contains("unknown"))
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct FrictionRecord {
     pub id: i64,
     pub created_at: String,
+    pub risk_lane: Option<String>,
+    pub input_type: Option<String>,
     pub task_summary: String,
     pub harness_friction: String,
 }
@@ -285,5 +467,74 @@ mod tests {
     fn parses_bool_flags() {
         assert_eq!(BoolFlag::parse("--unit", "1").unwrap(), BoolFlag(1));
         assert!(BoolFlag::parse("--unit", "yes").is_err());
+    }
+
+    fn trace_source() -> TraceScoreSource {
+        TraceScoreSource {
+            id: 7,
+            task_summary: "Completed a useful task".to_owned(),
+            intake_id: None,
+            risk_lane: None,
+            agent: None,
+            actions_taken: None,
+            files_read: None,
+            files_changed: None,
+            decisions_made: None,
+            errors: None,
+            outcome: Some("completed".to_owned()),
+            duration_seconds: None,
+            token_estimate: None,
+            harness_friction: None,
+            notes: None,
+        }
+    }
+
+    #[test]
+    fn scores_minimal_standard_and_detailed_traces() {
+        let minimal = score_trace(trace_source());
+        assert_eq!(minimal.achieved, TraceQualityTier::Minimal);
+
+        let mut standard_source = trace_source();
+        standard_source.agent = Some("codex".to_owned());
+        standard_source.actions_taken = Some("[\"read\",\"patched\"]".to_owned());
+        standard_source.files_read = Some("[\"PHASE3.md\"]".to_owned());
+        standard_source.files_changed = Some("[\"docs/TRACE_SPEC.md\"]".to_owned());
+        standard_source.harness_friction = Some("none".to_owned());
+        let standard = score_trace(standard_source);
+        assert_eq!(standard.achieved, TraceQualityTier::Standard);
+
+        let mut detailed_source = trace_source();
+        detailed_source.agent = Some("codex".to_owned());
+        detailed_source.actions_taken = Some("[\"read\",\"patched\"]".to_owned());
+        detailed_source.files_read = Some("[\"PHASE3.md\"]".to_owned());
+        detailed_source.files_changed = Some("[\"docs/TRACE_SPEC.md\"]".to_owned());
+        detailed_source.decisions_made = Some("[\"kept schema unchanged\"]".to_owned());
+        detailed_source.errors = Some("[\"none\"]".to_owned());
+        detailed_source.harness_friction = Some("none".to_owned());
+        detailed_source.duration_seconds = Some(120);
+        detailed_source.token_estimate = Some(2000);
+        let detailed = score_trace(detailed_source);
+        assert_eq!(detailed.achieved, TraceQualityTier::Detailed);
+    }
+
+    #[test]
+    fn compares_trace_score_to_lane_requirement() {
+        let mut source = trace_source();
+        source.risk_lane = Some("high_risk".to_owned());
+        source.agent = Some("codex".to_owned());
+        source.actions_taken = Some("[\"read\",\"patched\"]".to_owned());
+        source.files_read = Some("[\"PHASE3.md\"]".to_owned());
+        source.files_changed = Some("[\"docs/TRACE_SPEC.md\"]".to_owned());
+        source.harness_friction = Some("none".to_owned());
+
+        let result = score_trace(source);
+
+        assert_eq!(result.achieved, TraceQualityTier::Standard);
+        assert_eq!(result.required, Some(TraceQualityTier::Detailed));
+        assert!(!result.meets_requirement);
+        assert!(result
+            .missing_detailed
+            .iter()
+            .any(|field| field.starts_with("decisions_made")));
     }
 }

@@ -118,9 +118,9 @@ Benchmark indicators:
 
 Current status:
 
-- Achieved for the Phase 2 specification layer. Durable state exists, and the
-  Phase 2 docs define the observability and context specification. Active
-  scoring and automated evolution remain H3+ work.
+- Achieved. Durable state exists, and the Phase 2 docs define the
+  observability and context specification. Phase 3 active scoring builds on
+  this layer.
 
 Activated responsibilities:
 
@@ -160,8 +160,11 @@ Benchmark indicators:
 
 Current status:
 
-- Not achieved. Phase 2 defines the concepts, but does not implement scoring or
-  automation.
+- Partially achieved by Phase 3. `scripts/harness score-trace` scores trace
+  quality against tier rules, `query friction` includes linked intake context,
+  and the backlog outcome loop documents predicted impact versus actual
+  outcome. Full H3 still requires benchmark comparison output that attributes
+  moved or regressed responsibilities.
 
 Activated responsibilities:
 
@@ -257,7 +260,7 @@ Activated responsibilities:
 | H0 | Passed | Harness docs, templates, and durable records exist. |
 | H1 | Achieved | `AGENTS.md`, `docs/HARNESS.md`, `docs/FEATURE_INTAKE.md`, `docs/ARCHITECTURE.md`, `docs/templates/*`, and `docs/TEST_MATRIX.md` exist. |
 | H2 | Achieved | `scripts/harness`, `scripts/schema/001-init.sql`, durable story records, `docs/HARNESS_COMPONENTS.md`, `docs/HARNESS_MATURITY.md`, `docs/TRACE_SPEC.md`, and `docs/CONTEXT_RULES.md` define the Phase 2 surface. |
-| H3 | Not achieved | No automated trace scoring or component-level benchmark attribution exists. |
+| H3 | Partial | Phase 3 adds `scripts/harness score-trace`, enriched friction context, and the backlog outcome loop. Component-level benchmark attribution remains open. |
 | H4 | Not achieved | No generic verification runner or batch proof updater exists. |
 | H5 | Not achieved | No self-improvement protocol or automated evolution loop exists. |
 
@@ -277,8 +280,9 @@ Activated responsibilities:
 | Entropy auditing | Missing | Missing | Partial | Covered | Covered | Covered |
 | Intervention recording | Missing | Partial | Partial | Covered | Covered | Covered |
 
-## Phase 2 Interpretation
+## Phase 3 Interpretation
 
-Phase 2 completes the H2 specification layer. It does not claim H3 because H3
-requires active scoring, benchmark attribution, and automated review loops that
-are explicitly out of scope for this phase.
+Phase 3 starts the H2 to H3 transition. It claims active trace scoring and a
+documented improvement feedback loop, but it does not claim full H3 because
+benchmark comparison and component-level regression attribution are explicitly
+outside this repository's Phase 3 scope.

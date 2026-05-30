@@ -15,7 +15,8 @@ scripts/harness story ...     # Add or update a story (test matrix row)
 scripts/harness decision ...  # Add a decision or run its verification
 scripts/harness backlog ...   # Add or close a backlog item
 scripts/harness trace ...     # Record an agent execution trace
-scripts/harness query ...     # Query harness data
+scripts/harness score-trace   # Score a trace against TRACE_SPEC.md tiers
+scripts/harness query ...     # Query harness data, including backlog --open/--closed
 scripts/harness migrate       # Apply pending schema migrations
 ```
 
@@ -31,9 +32,12 @@ should go through the Rust CLI.
 
 ### Rust CLI
 
-`scripts/harness` uses the Rust CLI when a prebuilt binary exists at
-`scripts/bin/harness-cli`, a development binary exists at
-`target/debug/harness-cli`, or a path is provided by `HARNESS_RUST_CLI`.
+`scripts/harness` uses the Rust CLI when a path is provided by
+`HARNESS_RUST_CLI`, when a development binary exists at
+`target/debug/harness-cli`, or when a prebuilt binary exists at
+`scripts/bin/harness-cli`. Installed projects normally use the prebuilt binary;
+source checkouts can run a freshly built development binary without replacing
+the installed artifact.
 
 Current migrated commands:
 
@@ -49,6 +53,7 @@ scripts/harness decision verify ...
 scripts/harness backlog add ...
 scripts/harness backlog close ...
 scripts/harness trace ...
+scripts/harness score-trace
 scripts/harness query matrix
 scripts/harness query backlog
 scripts/harness query decisions

@@ -50,6 +50,13 @@ docs, stories, decisions, and initiative notes as the living surface.
 
 Use for low-risk docs, copy, names, or narrow edits.
 
+Also use for initial project setup when the work is limited to installing
+declared dependencies, wiring a server entrypoint, adding a health/smoke
+endpoint, or opening a local development database connection without creating
+domain schema, CRUD behavior, auth, authorization, provider integration, or
+data migration. A health endpoint in a new benchmark or scaffolded project is
+smoke proof, not a public contract escalation by itself.
+
 Requirements:
 
 - Patch directly.
