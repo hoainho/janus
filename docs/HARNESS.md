@@ -197,8 +197,8 @@ behavior or validation results:
    impact expected from the improvement.
 2. When closing the item, fill `--outcome` with the actual measured result or
    review evidence.
-3. Use `scripts/harness query backlog --open` to review proposed and accepted
-   items, and `scripts/harness query backlog --closed` to compare predictions
+3. Use `scripts/bin/harness-cli query backlog --open` to review proposed and accepted
+   items, and `scripts/bin/harness-cli query backlog --closed` to compare predictions
    with outcomes after implementation.
 
 The `harness_friction` field on traces also captures per-task friction so
@@ -222,7 +222,7 @@ For every task:
    changed.
 7. Record a trace with `scripts/bin/harness-cli trace`, using
    `docs/TRACE_SPEC.md` for the expected trace tier and field depth.
-8. Run `scripts/harness score-trace` when the CLI supports it to confirm the
+8. Run `scripts/bin/harness-cli score-trace` when the CLI supports it to confirm the
    trace meets the linked intake lane requirement.
 9. If harness friction was found, either fix it directly or record it with
    `scripts/bin/harness-cli backlog add`.

@@ -12,9 +12,8 @@ This repo uses Harness. Before work, read:
 - `docs/FEATURE_INTAKE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CONTEXT_RULES.md`
-- `scripts/harness query matrix`
+- `scripts/bin/harness-cli query matrix`
 
-Use the Rust Harness CLI as the main operational tool. Run it through the
-stable repo-local entrypoint `scripts/harness`, which uses the prebuilt Rust
-binary at `scripts/bin/harness-cli` in installed projects.
+Use the Rust Harness CLI at `scripts/bin/harness-cli` as the main operational
+tool.
 <!-- HARNESS:END -->

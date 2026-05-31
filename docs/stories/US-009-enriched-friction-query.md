@@ -10,7 +10,7 @@ tiny
 
 ## Product Contract
 
-`scripts/harness query friction` shows the task lane and input type from a
+`scripts/bin/harness-cli query friction` shows the task lane and input type from a
 linked intake record alongside each friction entry.
 
 ## Relevant Product Docs
@@ -30,7 +30,7 @@ linked intake record alongside each friction entry.
 
 ## Design Notes
 
-- Commands: existing `scripts/harness query friction`.
+- Commands: existing `scripts/bin/harness-cli query friction`.
 - Queries: LEFT JOIN from `trace` to `intake`.
 - API: extend `FrictionRecord`.
 - Tables: no schema migration.
@@ -44,7 +44,7 @@ linked intake record alongside each friction entry.
 | Unit | Rust tests for joined and missing intake context. |
 | Integration | CLI smoke for `query friction`. |
 | E2E | Not applicable; CLI-only story. |
-| Platform | Existing repo-local entrypoint continues to run. |
+| Platform | `scripts/bin/harness-cli` continues to run. |
 | Release | `cargo clippy --workspace -- -D warnings`. |
 
 ## Harness Delta
@@ -57,5 +57,5 @@ observability reviews.
 - `mise x rust@stable -- cargo fmt --check`
 - `mise x rust@stable -- cargo test --workspace` passed with 15 tests.
 - `mise x rust@stable -- cargo clippy --workspace -- -D warnings`
-- CLI smoke: `scripts/harness query friction` showed `risk_lane` and
+- CLI smoke: `scripts/bin/harness-cli query friction` showed `risk_lane` and
   `input_type` for linked traces and `-` for unlinked traces.

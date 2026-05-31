@@ -22,17 +22,17 @@ when closed, and backlog queries can filter open and closed items.
 ## Acceptance Criteria
 
 - `docs/HARNESS.md` documents the predicted-impact to actual-outcome loop.
-- `scripts/harness query backlog --open` shows only proposed and accepted
+- `scripts/bin/harness-cli query backlog --open` shows only proposed and accepted
   items.
-- `scripts/harness query backlog --closed` shows only implemented and rejected
+- `scripts/bin/harness-cli query backlog --closed` shows only implemented and rejected
   items.
-- `scripts/harness query backlog` without a filter still shows all items.
+- `scripts/bin/harness-cli query backlog` without a filter still shows all items.
 - `docs/GLOSSARY.md` defines "backlog outcome loop".
 - `cargo test` covers open and closed backlog filters.
 
 ## Design Notes
 
-- Commands: `scripts/harness query backlog --open`, `scripts/harness query
+- Commands: `scripts/bin/harness-cli query backlog --open`, `scripts/bin/harness-cli query
   backlog --closed`.
 - Queries: optional backlog status filter.
 - API: add filter argument to backlog query path.
@@ -48,7 +48,7 @@ when closed, and backlog queries can filter open and closed items.
 | Unit | Rust tests for open, closed, and unfiltered backlog queries. |
 | Integration | CLI smoke for filtered backlog queries. |
 | E2E | Not applicable; CLI-only story. |
-| Platform | Existing repo-local entrypoint continues to run. |
+| Platform | `scripts/bin/harness-cli` continues to run. |
 | Release | `cargo clippy --workspace -- -D warnings`. |
 
 ## Harness Delta
@@ -61,7 +61,7 @@ measured outcome after closure.
 - `mise x rust@stable -- cargo fmt --check`
 - `mise x rust@stable -- cargo test --workspace` passed with 15 tests.
 - `mise x rust@stable -- cargo clippy --workspace -- -D warnings`
-- CLI smoke: `scripts/harness query backlog --open` returned only proposed
+- CLI smoke: `scripts/bin/harness-cli query backlog --open` returned only proposed
   backlog items.
-- CLI smoke: `scripts/harness query backlog --closed` returned only implemented
+- CLI smoke: `scripts/bin/harness-cli query backlog --closed` returned only implemented
   backlog items with predicted and actual outcome columns visible.

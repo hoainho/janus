@@ -3,13 +3,13 @@
 ## Current Behavior
 
 Harness operational records live in a local SQLite database managed by
-`scripts/harness`. The Rust CLI is the main tool for operational records in
+`scripts/bin/harness-cli`. The Rust CLI is the main tool for operational records in
 installed projects.
 
 The current command path is:
 
 ```bash
-scripts/harness <command>
+scripts/bin/harness-cli <command>
 ```
 
 ## Target Behavior
@@ -19,7 +19,7 @@ binary downloaded by the installer. The repository-local command path remains
 stable:
 
 ```bash
-scripts/harness <command>
+scripts/bin/harness-cli <command>
 ```
 
 The Rust CLI preserves the existing database schema and command semantics while

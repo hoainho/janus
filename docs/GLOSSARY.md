@@ -64,7 +64,7 @@ closed so future agents can compare expectation with result.
 
 ## Durable Layer
 
-The SQLite database and CLI (`scripts/harness`) that stores operational records
+The SQLite database and CLI (`scripts/bin/harness-cli`) that stores operational records
 (intakes, stories, decisions, backlog items, traces) as structured, queryable
 data. Policy docs describe how to work; the durable layer stores what happened.
 

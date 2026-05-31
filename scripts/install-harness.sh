@@ -197,11 +197,10 @@ This repo uses Harness. Before work, read:
 - `docs/FEATURE_INTAKE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CONTEXT_RULES.md`
-- `scripts/harness query matrix`
+- `scripts/bin/harness-cli query matrix`
 
-Use the Rust Harness CLI as the main operational tool. Run it through the
-stable repo-local entrypoint `scripts/harness`, which uses the prebuilt Rust
-binary at `scripts/bin/harness-cli` in installed projects.
+Use the Rust Harness CLI at `scripts/bin/harness-cli` as the main operational
+tool.
 <!-- HARNESS:END -->
 EOF
 }
@@ -718,16 +717,9 @@ docs/templates/high-risk-story/execplan.md
 docs/templates/high-risk-story/overview.md
 docs/templates/high-risk-story/validation.md
 scripts/README.md
-scripts/harness
 scripts/schema/001-init.sql
 .gitignore
 EOF
-
-if [ "$DRY_RUN" -eq 0 ]; then
-  chmod 755 "$TARGET_DIR/scripts/harness"
-else
-  log "chmod    scripts/harness"
-fi
 
 refresh_agent_shim
 install_harness_cli_binary

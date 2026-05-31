@@ -3,7 +3,7 @@
 ## Goal
 
 Replace the growing durable-layer CLI with a typed Rust implementation
-while preserving the repository-local `scripts/harness` command contract.
+while preserving the repository-local `scripts/bin/harness-cli` command contract.
 
 ## Scope
 
@@ -13,7 +13,7 @@ In scope:
 - Keep SQLite as the durable storage engine.
 - Preserve existing command names and flags during the first migration.
 - Ship the Rust CLI as a prebuilt binary downloaded by the installer.
-- Keep `scripts/harness` as the stable command path.
+- Keep `scripts/bin/harness-cli` as the stable command path.
 - Add command-contract tests for the Rust CLI.
 
 Out of scope:
@@ -53,7 +53,7 @@ Hard gates:
 
 Pause for human confirmation if:
 
-- The `scripts/harness` command path would need to change.
+- The `scripts/bin/harness-cli` command path would need to change.
 - Prebuilt binary distribution requires a new hosting provider.
 - Checksum or release verification cannot be automated.
 - Current SQLite schema compatibility cannot be preserved.

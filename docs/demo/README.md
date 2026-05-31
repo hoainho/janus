@@ -100,8 +100,8 @@ The story then appears in the durable proof matrix so behavior and proof stay
 linked:
 
 ```bash
-scripts/harness story add --id US-001 --title "Create a task" --lane normal --contract docs/product/tasks.md
-scripts/harness query matrix
+scripts/bin/harness-cli story add --id US-001 --title "Create a task" --lane normal --contract docs/product/tasks.md
+scripts/bin/harness-cli query matrix
 ```
 
 Example row:
@@ -147,4 +147,4 @@ Add a reusable example-spec walkthrough or starter fixture.
 ```
 
 Small improvements can be made directly. Larger process changes should be
-recorded with `scripts/harness backlog add`.
+recorded with `scripts/bin/harness-cli backlog add`.

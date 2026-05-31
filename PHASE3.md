@@ -73,8 +73,8 @@ The harness can't learn from its own improvements.
 | # | Criterion | How to verify |
 |---|-----------|---------------|
 | 1 | `docs/HARNESS.md` Growth Rule section documents when to fill `--predicted` on `backlog add` and `--outcome` on `backlog close`. | Read `docs/HARNESS.md`, confirm the workflow is explicit: predicted at creation, outcome at close with measured evidence. |
-| 2 | `scripts/harness query backlog --open` returns only rows where `status IN ('proposed', 'accepted')`. | Run `scripts/harness init && scripts/harness backlog add --title "test" --predicted "x"` then `scripts/harness backlog close --id 1 --outcome "y"`. Verify `query backlog --open` returns 0 rows and `query backlog` returns 1 row. |
-| 3 | `scripts/harness query backlog --closed` returns only rows where `status IN ('implemented', 'rejected')`. | After the above, verify `query backlog --closed` returns 1 row with both `predicted_impact` and `actual_outcome` visible. |
+| 2 | `scripts/bin/harness-cli query backlog --open` returns only rows where `status IN ('proposed', 'accepted')`. | Run `scripts/bin/harness-cli init && scripts/bin/harness-cli backlog add --title "test" --predicted "x"` then `scripts/bin/harness-cli backlog close --id 1 --outcome "y"`. Verify `query backlog --open` returns 0 rows and `query backlog` returns 1 row. |
+| 3 | `scripts/bin/harness-cli query backlog --closed` returns only rows where `status IN ('implemented', 'rejected')`. | After the above, verify `query backlog --closed` returns 1 row with both `predicted_impact` and `actual_outcome` visible. |
 | 4 | `query backlog` (no filter) continues to return all items as it does today. | Existing behavior unchanged. |
 | 5 | `docs/GLOSSARY.md` includes the term "backlog outcome loop" with a definition. | Read the glossary. |
 | 6 | `cargo test` passes with tests covering the `--open` and `--closed` filters. | Run `cargo test` in the workspace root. |
@@ -110,8 +110,8 @@ in the benchmark's `check-quality.sh`, which uses blunt string-length heuristics
 rather than the actual TRACE_SPEC.md rules.
 
 **What gets created/changed:**
-1. New CLI subcommand: `scripts/harness score-trace` (scores the most recent
-   trace) and `scripts/harness score-trace --id N` (scores a specific trace).
+1. New CLI subcommand: `scripts/bin/harness-cli score-trace` (scores the most recent
+   trace) and `scripts/bin/harness-cli score-trace --id N` (scores a specific trace).
 2. Scoring logic in the Rust CLI that evaluates trace fields against
    TRACE_SPEC.md tier rules.
 3. When the trace is linked to an intake record, the command looks up the lane
@@ -150,7 +150,7 @@ explaining why duration is unavailable."
 **Example Output:**
 
 ```
-$ scripts/harness score-trace
+$ scripts/bin/harness-cli score-trace
 Trace #7 (latest):
   Tier achieved: standard (2/3)
   Lane: high_risk → required tier: detailed (3/3)
@@ -161,7 +161,7 @@ Trace #7 (latest):
     - duration_seconds: null (no explanation in notes)
     - token_estimate: null (no explanation in notes)
 
-$ scripts/harness score-trace --id 5
+$ scripts/bin/harness-cli score-trace --id 5
 Trace #5:
   Tier achieved: detailed (3/3)
   Lane: normal → required tier: standard (2/3)
@@ -172,17 +172,17 @@ Trace #5:
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| 1 | `scripts/harness score-trace` (no args) scores the most recent trace in the database. | Create a harness DB with `init`, record a trace with `trace --summary "test task" --outcome completed`, run `score-trace`. Output shows the trace ID, tier achieved, and field breakdown. |
-| 2 | `scripts/harness score-trace --id N` scores a specific trace by ID. | Record two traces, then `score-trace --id 1`. Output shows trace #1's score, not the latest. |
+| 1 | `scripts/bin/harness-cli score-trace` (no args) scores the most recent trace in the database. | Create a harness DB with `init`, record a trace with `trace --summary "test task" --outcome completed`, run `score-trace`. Output shows the trace ID, tier achieved, and field breakdown. |
+| 2 | `scripts/bin/harness-cli score-trace --id N` scores a specific trace by ID. | Record two traces, then `score-trace --id 1`. Output shows trace #1's score, not the latest. |
 | 3 | A minimal trace (only summary + outcome) scores tier 1. | Record `trace --summary "short test task" --outcome completed`. `score-trace` outputs `minimal (1/3)`. |
 | 4 | A standard trace (summary + outcome + agent + actions + files_read + files_changed + friction) scores tier 2. | Record a trace with all standard fields. `score-trace` outputs `standard (2/3)`. |
 | 5 | A detailed trace (all standard fields + decisions + errors + friction + duration + tokens) scores tier 3. | Record a trace with all detailed fields. `score-trace` outputs `detailed (3/3)`. |
 | 6 | When the trace has a linked `intake_id`, the command looks up the intake's `risk_lane` and compares the achieved tier against the lane requirement. | Record an intake with `--lane high_risk`, then record a standard trace with `--intake <id>`. `score-trace` output includes `Lane: high_risk → required tier: detailed` and `BELOW REQUIREMENT`. |
 | 7 | When the trace has no linked intake, the command scores the tier but does not report a lane requirement. | Record a trace without `--intake`. `score-trace` outputs the tier but says `Lane: unknown (no linked intake)`. |
 | 8 | The command lists specific missing fields when the trace is below its tier ceiling or below its lane requirement. | A standard trace missing `decisions_made` and `duration_seconds` lists both as missing for detailed tier. |
-| 9 | `scripts/harness score-trace` exits with code 0 when the trace meets its lane requirement (or has no lane), and exits with code 1 when below requirement. | Allows scripted use: an agent can run `score-trace && echo OK || echo FIX`. |
+| 9 | `scripts/bin/harness-cli score-trace` exits with code 0 when the trace meets its lane requirement (or has no lane), and exits with code 1 when below requirement. | Allows scripted use: an agent can run `score-trace && echo OK || echo FIX`. |
 | 10 | `cargo test` passes with unit tests covering all three tiers, the lane lookup, the missing-field output, and the exit code behavior. | Run `cargo test` in the workspace root. |
-| 11 | TRACE_SPEC.md Review Checklist is updated to reference `score-trace` as a mechanical check. | Read TRACE_SPEC.md, confirm it says "run `scripts/harness score-trace` to verify the trace meets the lane requirement." |
+| 11 | TRACE_SPEC.md Review Checklist is updated to reference `score-trace` as a mechanical check. | Read TRACE_SPEC.md, confirm it says "run `scripts/bin/harness-cli score-trace` to verify the trace meets the lane requirement." |
 
 **Lane:** Normal (new Rust CLI command, touches `interface.rs`, `application.rs`,
 `infrastructure.rs`, and `domain.rs`; no schema migration).
@@ -191,7 +191,7 @@ Trace #5:
 
 ### US-009: Enriched Friction Query
 
-**Problem:** `scripts/harness query friction` currently shows 4 columns:
+**Problem:** `scripts/bin/harness-cli query friction` currently shows 4 columns:
 `id`, `created_at`, `task_summary`, `harness_friction`. This tells you *what*
 the friction was but not *what kind of task* produced it. You can't tell whether
 friction came from a tiny, normal, or high-risk task, or what type of work
@@ -225,7 +225,7 @@ When a trace has no linked intake, the lane and type columns show `—` (dash).
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| 1 | `scripts/harness query friction` output includes `risk_lane` and `input_type` columns. | Create DB, record an intake (lane=normal, type=change_request), record a trace with friction linked to that intake. `query friction` output has 6 columns: id, created_at, risk_lane, input_type, task_summary, harness_friction. |
+| 1 | `scripts/bin/harness-cli query friction` output includes `risk_lane` and `input_type` columns. | Create DB, record an intake (lane=normal, type=change_request), record a trace with friction linked to that intake. `query friction` output has 6 columns: id, created_at, risk_lane, input_type, task_summary, harness_friction. |
 | 2 | Lane and type values come from the linked intake record via `intake_id`. | Verify the values match the intake, not the trace. |
 | 3 | When a trace has no `intake_id`, the lane and type columns display `—`. | Record a trace with friction but no `--intake` flag. `query friction` shows `—` for both columns. |
 | 4 | When a trace has `intake_id` but the intake was deleted (orphan), the columns display `—` without error. | Edge case: uses LEFT JOIN so missing intake doesn't crash. |

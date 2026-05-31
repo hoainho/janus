@@ -3,7 +3,7 @@
 ## Proof Strategy
 
 Prove the Rust CLI command contract against a temporary SQLite database. Each
-command should be tested through the stable `scripts/harness` entrypoint and
+command should be tested through the stable `scripts/bin/harness-cli` entrypoint and
 verified against durable records.
 
 ## Test Plan
@@ -12,10 +12,10 @@ verified against durable records.
 | --- | --- |
 | Unit | Parse command flags into typed values; reject invalid lanes, statuses, booleans, and missing required flags. |
 | Integration | Create a temp database, apply schema, run migrated use cases, and verify rows with SQLite queries. |
-| E2E | Install Harness into a temp target, download or locate the prebuilt CLI, run `scripts/harness init`, `intake`, `query intakes`, and `trace`. |
+| E2E | Install Harness into a temp target, download or locate the prebuilt CLI, run `scripts/bin/harness-cli init`, `intake`, `query intakes`, and `trace`. |
 | Platform | Verify supported macOS and Linux binary selection, checksum validation, and clear unsupported-platform errors. |
 | Performance | Query commands should remain fast on small local databases; no benchmark gate until larger trace volumes exist. |
-| Logs/Audit | Trace writes remain available through `scripts/harness trace` and `scripts/harness query traces`. |
+| Logs/Audit | Trace writes remain available through `scripts/bin/harness-cli trace` and `scripts/bin/harness-cli query traces`. |
 
 ## Fixtures
 
@@ -30,36 +30,36 @@ verified against durable records.
 cargo fmt --check
 cargo test --workspace
 bash -n scripts/install-harness.sh
-bash -n scripts/harness
+scripts/bin/harness-cli --help
 bash -n scripts/build-harness-cli-release.sh
 scripts/build-harness-cli-release.sh
-scripts/harness query stats
+scripts/bin/harness-cli query stats
 tmpdir=$(mktemp -d)
-HARNESS_DB="$tmpdir/harness.db" scripts/harness init
-HARNESS_DB="$tmpdir/harness.db" scripts/harness migrate
-HARNESS_DB="$tmpdir/harness.db" scripts/harness import brownfield
-HARNESS_DB="$tmpdir/harness.db" scripts/harness intake --type "Harness improvement" --summary "Rust CLI intake smoke" --lane high-risk --flags "public contracts" --docs "docs/decisions/0005-prebuilt-rust-harness-cli" --story US-002
-HARNESS_DB="$tmpdir/harness.db" scripts/harness story add --id US-SMOKE --title "Rust CLI smoke story" --lane high-risk --contract docs/decisions/0005-prebuilt-rust-harness-cli
-HARNESS_DB="$tmpdir/harness.db" scripts/harness story update --id US-SMOKE --status implemented --evidence "rust smoke" --unit 1 --integration 1
-HARNESS_DB="$tmpdir/harness.db" scripts/harness decision add --id 9999-smoke --title "Smoke Decision" --status accepted --doc docs/decisions/0005-prebuilt-rust-harness-cli --verify "true"
-HARNESS_DB="$tmpdir/harness.db" scripts/harness decision verify 9999-smoke
-HARNESS_DB="$tmpdir/harness.db" scripts/harness backlog add --title "Smoke backlog" --pain "Need proof" --risk normal --predicted "Proof exists"
-HARNESS_DB="$tmpdir/harness.db" scripts/harness backlog close --id 1 --status implemented --outcome "closed"
-HARNESS_DB="$tmpdir/harness.db" scripts/harness trace --summary "Smoke trace" --intake 1 --story US-SMOKE --agent Codex --outcome completed --actions "one,two" --friction "none"
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query matrix
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query backlog
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query decisions
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query intakes
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query traces
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query friction
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query stats
-HARNESS_DB="$tmpdir/harness.db" scripts/harness query sql "SELECT COUNT(*) AS story_count FROM story;"
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli init
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli migrate
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli import brownfield
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli intake --type "Harness improvement" --summary "Rust CLI intake smoke" --lane high-risk --flags "public contracts" --docs "docs/decisions/0005-prebuilt-rust-harness-cli" --story US-002
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli story add --id US-SMOKE --title "Rust CLI smoke story" --lane high-risk --contract docs/decisions/0005-prebuilt-rust-harness-cli
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli story update --id US-SMOKE --status implemented --evidence "rust smoke" --unit 1 --integration 1
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli decision add --id 9999-smoke --title "Smoke Decision" --status accepted --doc docs/decisions/0005-prebuilt-rust-harness-cli --verify "true"
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli decision verify 9999-smoke
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli backlog add --title "Smoke backlog" --pain "Need proof" --risk normal --predicted "Proof exists"
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli backlog close --id 1 --status implemented --outcome "closed"
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli trace --summary "Smoke trace" --intake 1 --story US-SMOKE --agent Codex --outcome completed --actions "one,two" --friction "none"
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query matrix
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query backlog
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query decisions
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query intakes
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query traces
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query friction
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query stats
+HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli query sql "SELECT COUNT(*) AS story_count FROM story;"
 rm -rf "$tmpdir"
 target=$(mktemp -d)
 scripts/install-harness.sh --directory "$target" --yes
-"$target/scripts/harness" init
-"$target/scripts/harness" intake --type "Harness improvement" --summary "installed binary smoke" --lane tiny
-"$target/scripts/harness" query stats
+"$target/scripts/bin/harness-cli" init
+"$target/scripts/bin/harness-cli" intake --type "Harness improvement" --summary "installed binary smoke" --lane tiny
+"$target/scripts/bin/harness-cli" query stats
 test -x "$target/scripts/bin/harness-cli"
 rm -rf "$target"
 ```
@@ -70,7 +70,7 @@ rm -rf "$target"
 - `cargo test --workspace`: passed, 10 tests, including regression coverage
   for repo-root decision verification and SQL `NULL` intake list storage.
 - `bash -n scripts/install-harness.sh`: passed.
-- `bash -n scripts/harness`: passed.
+- `scripts/bin/harness-cli --help`: passed.
 - `bash -n scripts/build-harness-cli-release.sh`: passed.
 - `.github/workflows/harness-cli-release.yml`: added to verify the workspace,
   build the four supported CLI release targets on hosted native runners, and
@@ -88,7 +88,7 @@ rm -rf "$target"
   multiple backlog items from `docs/HARNESS_BACKLOG.md`; rerunning the importer
   did not duplicate backlog rows.
 - Installer E2E passed using the local `dist` release source. It downloaded
-  `scripts/bin/harness-cli`, verified the checksum, ran `scripts/harness init`,
+  `scripts/bin/harness-cli`, verified the checksum, ran `scripts/bin/harness-cli init`,
   recorded an intake, and queried stats without relying on a local Cargo build
   inside the target project.
 - Checksum failure test passed: a corrupt `.sha256` file caused the installer
@@ -106,6 +106,6 @@ rm -rf "$target"
   `harness-cli-linux-arm64`, and `harness-cli-linux-arm64.sha256`.
 - Remote installer smoke passed from raw GitHub `main` plus
   `releases/latest/download`: the installer downloaded and verified the
-  `macos-arm64` binary, preserved executable bits for `scripts/harness` and
+  `macos-arm64` binary, preserved executable bits for `scripts/bin/harness-cli` and
   `scripts/bin/harness-cli`, and the installed command ran `init`, `intake`,
   `query stats`, and `import brownfield`.

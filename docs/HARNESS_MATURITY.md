@@ -89,7 +89,7 @@ traces with predictable depth.
 
 Criteria:
 
-- `scripts/harness` can record intake, story, decision, backlog, and trace
+- `scripts/bin/harness-cli` can record intake, story, decision, backlog, and trace
   data in `harness.db`.
 - `scripts/schema/001-init.sql` defines durable tables for intake, story,
   decision, backlog, and trace records.
@@ -102,7 +102,7 @@ Criteria:
 
 Required files:
 
-- `scripts/harness`
+- `scripts/bin/harness-cli`
 - `scripts/schema/001-init.sql`
 - `docs/HARNESS_COMPONENTS.md`
 - `docs/HARNESS_MATURITY.md`
@@ -160,7 +160,7 @@ Benchmark indicators:
 
 Current status:
 
-- Partially achieved by Phase 3. `scripts/harness score-trace` scores trace
+- Partially achieved by Phase 3. `scripts/bin/harness-cli score-trace` scores trace
   quality against tier rules, `query friction` includes linked intake context,
   and the backlog outcome loop documents predicted impact versus actual
   outcome. Full H3 still requires benchmark comparison output that attributes
@@ -259,8 +259,8 @@ Activated responsibilities:
 | --- | --- | --- |
 | H0 | Passed | Harness docs, templates, and durable records exist. |
 | H1 | Achieved | `AGENTS.md`, `docs/HARNESS.md`, `docs/FEATURE_INTAKE.md`, `docs/ARCHITECTURE.md`, `docs/templates/*`, and `docs/TEST_MATRIX.md` exist. |
-| H2 | Achieved | `scripts/harness`, `scripts/schema/001-init.sql`, durable story records, `docs/HARNESS_COMPONENTS.md`, `docs/HARNESS_MATURITY.md`, `docs/TRACE_SPEC.md`, and `docs/CONTEXT_RULES.md` define the Phase 2 surface. |
-| H3 | Partial | Phase 3 adds `scripts/harness score-trace`, enriched friction context, and the backlog outcome loop. Component-level benchmark attribution remains open. |
+| H2 | Achieved | `scripts/bin/harness-cli`, `scripts/schema/001-init.sql`, durable story records, `docs/HARNESS_COMPONENTS.md`, `docs/HARNESS_MATURITY.md`, `docs/TRACE_SPEC.md`, and `docs/CONTEXT_RULES.md` define the Phase 2 surface. |
+| H3 | Partial | Phase 3 adds `scripts/bin/harness-cli score-trace`, enriched friction context, and the backlog outcome loop. Component-level benchmark attribution remains open. |
 | H4 | Not achieved | No generic verification runner or batch proof updater exists. |
 | H5 | Not achieved | No self-improvement protocol or automated evolution loop exists. |
 

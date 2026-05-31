@@ -105,9 +105,8 @@ Use `--dry-run` to preview changes before writing files.
 
 The installer also downloads the prebuilt Harness CLI for the current platform,
 verifies its `.sha256` checksum, and installs it at
-`scripts/bin/harness-cli`. The Rust CLI is the main Harness tool. Installed
-projects keep `scripts/harness` as the stable command path, and that entrypoint
-uses the Rust binary for normal Harness work.
+`scripts/bin/harness-cli`. The Rust CLI is the main Harness tool and stable
+command path.
 
 Harness CLI release assets are published from tags by the
 `Harness CLI Release` GitHub Actions workflow. The installer expects each
