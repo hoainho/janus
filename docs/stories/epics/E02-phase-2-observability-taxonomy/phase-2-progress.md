@@ -8,7 +8,7 @@ Allowed changes:
 
 - Markdown under `docs/`.
 - `AGENTS.md`.
-- Durable Harness records through `scripts/harness`.
+- Durable Harness records through `scripts/bin/harness-cli`.
 
 Out of scope:
 

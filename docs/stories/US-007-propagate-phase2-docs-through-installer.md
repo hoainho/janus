@@ -47,7 +47,7 @@ references `docs/CONTEXT_RULES.md`.
 - Queries: none.
 - API: none.
 - Tables: none.
-- Domain rules: preserve the stable `scripts/harness` entrypoint and only
+- Domain rules: preserve the stable `scripts/bin/harness-cli` entrypoint and only
   expand the Harness operating-doc payload.
 - UI surfaces: terminal installer output.
 
@@ -77,7 +77,7 @@ but not yet propagated by the installer.
   `scripts/bin/harness-cli`.
 - Merge install into a temporary existing Harness target created the missing
   Phase 2 docs while preserving existing `docs/README.md` and
-  `scripts/harness`.
+  `scripts/bin/harness-cli`.
 - Merge install with `--refresh-agent-shim` created the missing Phase 2 docs
   and refreshed the marked AGENTS Harness block to include
   `docs/CONTEXT_RULES.md`.

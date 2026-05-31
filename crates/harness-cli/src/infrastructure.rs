@@ -12,8 +12,9 @@ use crate::application::{
     StoryAddInput, StoryUpdateInput, TraceInput,
 };
 use crate::domain::{
-    normalize_token, yes_no, BacklogRecord, DecisionRecord, FrictionRecord, HarnessStats,
-    IntakeRecord, RiskLane, StoryMatrixRecord, TraceRecord,
+    normalize_token, score_trace, yes_no, BacklogFilter, BacklogRecord, DecisionRecord,
+    FrictionRecord, HarnessStats, IntakeRecord, RiskLane, StoryMatrixRecord, TraceRecord,
+    TraceScoreResult, TraceScoreSource,
 };
 
 pub type Result<T> = std::result::Result<T, HarnessInfraError>;
@@ -32,6 +33,10 @@ pub enum HarnessInfraError {
     StoryNotFound(String),
     #[error("backlog close: backlog item '{0}' not found")]
     BacklogNotFound(i64),
+    #[error("trace '{0}' not found")]
+    TraceNotFound(i64),
+    #[error("no traces found")]
+    NoTraces,
     #[error("story update: nothing to update")]
     EmptyStoryUpdate,
     #[error("sqlite error: {0}")]
@@ -52,8 +57,9 @@ pub trait HarnessRepository {
     fn add_backlog(&self, input: BacklogAddInput) -> Result<i64>;
     fn close_backlog(&self, input: BacklogCloseInput) -> Result<()>;
     fn record_trace(&self, input: TraceInput) -> Result<i64>;
+    fn score_trace(&self, id: Option<i64>) -> Result<TraceScoreResult>;
     fn query_matrix(&self) -> Result<Vec<StoryMatrixRecord>>;
-    fn query_backlog(&self) -> Result<Vec<BacklogRecord>>;
+    fn query_backlog(&self, filter: BacklogFilter) -> Result<Vec<BacklogRecord>>;
     fn query_decisions(&self) -> Result<Vec<DecisionRecord>>;
     fn query_intakes(&self) -> Result<Vec<IntakeRecord>>;
     fn query_traces(&self) -> Result<Vec<TraceRecord>>;
@@ -594,6 +600,69 @@ impl HarnessRepository for SqliteHarnessRepository {
         Ok(connection.last_insert_rowid())
     }
 
+    fn score_trace(&self, id: Option<i64>) -> Result<TraceScoreResult> {
+        let connection = self.open_existing()?;
+        let sql = match id {
+            Some(_) => {
+                "SELECT
+                    trace.id,
+                    trace.task_summary,
+                    trace.intake_id,
+                    intake.risk_lane,
+                    trace.agent,
+                    trace.actions_taken,
+                    trace.files_read,
+                    trace.files_changed,
+                    trace.decisions_made,
+                    trace.errors,
+                    trace.outcome,
+                    trace.duration_seconds,
+                    trace.token_estimate,
+                    trace.harness_friction,
+                    trace.notes
+                 FROM trace
+                 LEFT JOIN intake ON intake.id = trace.intake_id
+                 WHERE trace.id = ?1"
+            }
+            None => {
+                "SELECT
+                    trace.id,
+                    trace.task_summary,
+                    trace.intake_id,
+                    intake.risk_lane,
+                    trace.agent,
+                    trace.actions_taken,
+                    trace.files_read,
+                    trace.files_changed,
+                    trace.decisions_made,
+                    trace.errors,
+                    trace.outcome,
+                    trace.duration_seconds,
+                    trace.token_estimate,
+                    trace.harness_friction,
+                    trace.notes
+                 FROM trace
+                 LEFT JOIN intake ON intake.id = trace.intake_id
+                 ORDER BY trace.id DESC
+                 LIMIT 1"
+            }
+        };
+
+        let source = if let Some(id) = id {
+            connection
+                .query_row(sql, params![id], trace_score_source_from_row)
+                .optional()?
+                .ok_or(HarnessInfraError::TraceNotFound(id))?
+        } else {
+            connection
+                .query_row(sql, [], trace_score_source_from_row)
+                .optional()?
+                .ok_or(HarnessInfraError::NoTraces)?
+        };
+
+        Ok(score_trace(source))
+    }
+
     fn query_matrix(&self) -> Result<Vec<StoryMatrixRecord>> {
         let connection = self.open_existing()?;
         let mut statement = connection.prepare(
@@ -617,12 +686,18 @@ impl HarnessRepository for SqliteHarnessRepository {
         collect_rows(rows)
     }
 
-    fn query_backlog(&self) -> Result<Vec<BacklogRecord>> {
+    fn query_backlog(&self, filter: BacklogFilter) -> Result<Vec<BacklogRecord>> {
         let connection = self.open_existing()?;
-        let mut statement = connection.prepare(
+        let where_clause = match filter {
+            BacklogFilter::All => "",
+            BacklogFilter::Open => "WHERE status IN ('proposed', 'accepted')",
+            BacklogFilter::Closed => "WHERE status IN ('implemented', 'rejected')",
+        };
+        let sql = format!(
             "SELECT id, title, status, risk, predicted_impact, actual_outcome
-             FROM backlog ORDER BY status, id;",
-        )?;
+             FROM backlog {where_clause} ORDER BY status, id;"
+        );
+        let mut statement = connection.prepare(&sql)?;
 
         let rows = statement.query_map([], |row| {
             Ok(BacklogRecord {
@@ -701,17 +776,27 @@ impl HarnessRepository for SqliteHarnessRepository {
     fn query_friction(&self) -> Result<Vec<FrictionRecord>> {
         let connection = self.open_existing()?;
         let mut statement = connection.prepare(
-            "SELECT id, created_at, task_summary, harness_friction
-             FROM trace WHERE harness_friction IS NOT NULL
-             ORDER BY id DESC;",
+            "SELECT
+                trace.id,
+                trace.created_at,
+                intake.risk_lane,
+                intake.input_type,
+                trace.task_summary,
+                trace.harness_friction
+             FROM trace
+             LEFT JOIN intake ON intake.id = trace.intake_id
+             WHERE trace.harness_friction IS NOT NULL
+             ORDER BY trace.id DESC;",
         )?;
 
         let rows = statement.query_map([], |row| {
             Ok(FrictionRecord {
                 id: row.get(0)?,
                 created_at: row.get(1)?,
-                task_summary: row.get(2)?,
-                harness_friction: row.get(3)?,
+                risk_lane: row.get(2)?,
+                input_type: row.get(3)?,
+                task_summary: row.get(4)?,
+                harness_friction: row.get(5)?,
             })
         })?;
 
@@ -830,6 +915,26 @@ fn collect_rows<T>(
 ) -> Result<Vec<T>> {
     rows.collect::<std::result::Result<Vec<_>, _>>()
         .map_err(HarnessInfraError::from)
+}
+
+fn trace_score_source_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TraceScoreSource> {
+    Ok(TraceScoreSource {
+        id: row.get(0)?,
+        task_summary: row.get(1)?,
+        intake_id: row.get(2)?,
+        risk_lane: row.get(3)?,
+        agent: row.get(4)?,
+        actions_taken: row.get(5)?,
+        files_read: row.get(6)?,
+        files_changed: row.get(7)?,
+        decisions_made: row.get(8)?,
+        errors: row.get(9)?,
+        outcome: row.get(10)?,
+        duration_seconds: row.get(11)?,
+        token_estimate: row.get(12)?,
+        harness_friction: row.get(13)?,
+        notes: row.get(14)?,
+    })
 }
 
 fn markdown_table_fields(line: &str) -> Vec<String> {
@@ -1020,7 +1125,7 @@ mod tests {
         BacklogAddInput, BacklogCloseInput, DecisionAddInput, IntakeInput, StoryAddInput,
         StoryUpdateInput, TraceInput,
     };
-    use crate::domain::{BoolFlag, CsvList, InputType, RiskLane};
+    use crate::domain::{BacklogFilter, BoolFlag, CsvList, InputType, RiskLane, TraceQualityTier};
 
     fn test_repository() -> (TempDir, SqliteHarnessRepository) {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -1167,7 +1272,7 @@ mod tests {
             })
             .unwrap();
         assert_eq!(
-            repository.query_backlog().unwrap()[0]
+            repository.query_backlog(BacklogFilter::All).unwrap()[0]
                 .actual_outcome
                 .as_deref(),
             Some("done")
@@ -1200,6 +1305,85 @@ mod tests {
             repository.query_friction().unwrap()[0].harness_friction,
             "none"
         );
+    }
+
+    #[test]
+    fn friction_query_includes_intake_context_and_filters_null_friction() {
+        let (_temp_dir, repository) = test_repository();
+        repository.init().unwrap();
+        let intake_id = repository
+            .record_intake(IntakeInput {
+                input_type: InputType::ChangeRequest,
+                summary: "Friction query context".to_owned(),
+                risk_lane: RiskLane::Normal,
+                risk_flags: CsvList::from_optional(None),
+                affected_docs: CsvList::from_optional(None),
+                story_id: None,
+                notes: None,
+            })
+            .unwrap();
+        repository
+            .record_trace(TraceInput {
+                task_summary: "Trace without friction".to_owned(),
+                intake_id: Some(intake_id),
+                story_id: None,
+                agent: Some("codex".to_owned()),
+                outcome: Some("completed".to_owned()),
+                duration_seconds: None,
+                token_estimate: None,
+                friction: None,
+                notes: None,
+                actions: CsvList::from_optional(None),
+                files_read: CsvList::from_optional(None),
+                files_changed: CsvList::from_optional(None),
+                decisions: CsvList::from_optional(None),
+                errors: CsvList::from_optional(None),
+            })
+            .unwrap();
+        repository
+            .record_trace(TraceInput {
+                task_summary: "Trace with linked friction".to_owned(),
+                intake_id: Some(intake_id),
+                story_id: None,
+                agent: Some("codex".to_owned()),
+                outcome: Some("completed".to_owned()),
+                duration_seconds: None,
+                token_estimate: None,
+                friction: Some("Linked friction".to_owned()),
+                notes: None,
+                actions: CsvList::from_optional(None),
+                files_read: CsvList::from_optional(None),
+                files_changed: CsvList::from_optional(None),
+                decisions: CsvList::from_optional(None),
+                errors: CsvList::from_optional(None),
+            })
+            .unwrap();
+        repository
+            .record_trace(TraceInput {
+                task_summary: "Trace with unlinked friction".to_owned(),
+                intake_id: None,
+                story_id: None,
+                agent: Some("codex".to_owned()),
+                outcome: Some("completed".to_owned()),
+                duration_seconds: None,
+                token_estimate: None,
+                friction: Some("Unlinked friction".to_owned()),
+                notes: None,
+                actions: CsvList::from_optional(None),
+                files_read: CsvList::from_optional(None),
+                files_changed: CsvList::from_optional(None),
+                decisions: CsvList::from_optional(None),
+                errors: CsvList::from_optional(None),
+            })
+            .unwrap();
+
+        let friction = repository.query_friction().unwrap();
+
+        assert_eq!(friction.len(), 2);
+        assert_eq!(friction[0].risk_lane, None);
+        assert_eq!(friction[0].input_type, None);
+        assert_eq!(friction[1].risk_lane.as_deref(), Some("normal"));
+        assert_eq!(friction[1].input_type.as_deref(), Some("change_request"));
     }
 
     #[test]
@@ -1321,7 +1505,7 @@ implemented
         assert_eq!(decisions[0].id, "0007-test-decision");
         assert_eq!(decisions[0].status, "accepted");
 
-        let backlog = repository.query_backlog().unwrap();
+        let backlog = repository.query_backlog(BacklogFilter::All).unwrap();
         assert_eq!(backlog.len(), 2);
         assert!(backlog
             .iter()
@@ -1333,5 +1517,125 @@ implemented
             .any(|item| item.title == "Keep installer checksum"
                 && item.status == "implemented"
                 && item.risk.as_deref() == Some("high_risk")));
+    }
+
+    #[test]
+    fn filters_open_and_closed_backlog_items() {
+        let (_temp_dir, repository) = test_repository();
+        repository.init().unwrap();
+
+        let proposed_id = repository
+            .add_backlog(BacklogAddInput {
+                title: "Proposed item".to_owned(),
+                discovered_while: None,
+                current_pain: None,
+                suggestion: None,
+                risk: Some(RiskLane::Tiny),
+                predicted_impact: Some("Should improve trace review.".to_owned()),
+                notes: None,
+            })
+            .unwrap();
+        let implemented_id = repository
+            .add_backlog(BacklogAddInput {
+                title: "Implemented item".to_owned(),
+                discovered_while: None,
+                current_pain: None,
+                suggestion: None,
+                risk: Some(RiskLane::Normal),
+                predicted_impact: Some("Should reduce missing proof.".to_owned()),
+                notes: None,
+            })
+            .unwrap();
+        repository
+            .close_backlog(BacklogCloseInput {
+                id: implemented_id,
+                status: "implemented".to_owned(),
+                actual_outcome: Some("Proof gaps were found earlier.".to_owned()),
+            })
+            .unwrap();
+
+        let all = repository.query_backlog(BacklogFilter::All).unwrap();
+        let open = repository.query_backlog(BacklogFilter::Open).unwrap();
+        let closed = repository.query_backlog(BacklogFilter::Closed).unwrap();
+
+        assert_eq!(all.len(), 2);
+        assert_eq!(open.len(), 1);
+        assert_eq!(open[0].id, proposed_id);
+        assert_eq!(closed.len(), 1);
+        assert_eq!(closed[0].id, implemented_id);
+        assert_eq!(
+            closed[0].actual_outcome.as_deref(),
+            Some("Proof gaps were found earlier.")
+        );
+    }
+
+    #[test]
+    fn scores_latest_and_specific_trace_with_lane_lookup() {
+        let (_temp_dir, repository) = test_repository();
+        repository.init().unwrap();
+        let intake_id = repository
+            .record_intake(IntakeInput {
+                input_type: InputType::HarnessImprovement,
+                summary: "High risk trace quality test".to_owned(),
+                risk_lane: RiskLane::HighRisk,
+                risk_flags: CsvList::from_optional(None),
+                affected_docs: CsvList::from_optional(None),
+                story_id: None,
+                notes: None,
+            })
+            .unwrap();
+        let first_trace = repository
+            .record_trace(TraceInput {
+                task_summary: "Minimal trace test".to_owned(),
+                intake_id: None,
+                story_id: None,
+                agent: None,
+                outcome: Some("completed".to_owned()),
+                duration_seconds: None,
+                token_estimate: None,
+                friction: None,
+                notes: None,
+                actions: CsvList::from_optional(None),
+                files_read: CsvList::from_optional(None),
+                files_changed: CsvList::from_optional(None),
+                decisions: CsvList::from_optional(None),
+                errors: CsvList::from_optional(None),
+            })
+            .unwrap();
+        repository
+            .record_trace(TraceInput {
+                task_summary: "Standard trace linked to high risk intake".to_owned(),
+                intake_id: Some(intake_id),
+                story_id: None,
+                agent: Some("codex".to_owned()),
+                outcome: Some("completed".to_owned()),
+                duration_seconds: None,
+                token_estimate: None,
+                friction: Some("none".to_owned()),
+                notes: None,
+                actions: CsvList::from_optional(Some("read,patched".to_owned())),
+                files_read: CsvList::from_optional(Some("PHASE3.md".to_owned())),
+                files_changed: CsvList::from_optional(Some(
+                    "crates/harness-cli/src/domain.rs".to_owned(),
+                )),
+                decisions: CsvList::from_optional(None),
+                errors: CsvList::from_optional(None),
+            })
+            .unwrap();
+
+        let latest = repository.score_trace(None).unwrap();
+        assert_eq!(latest.achieved, TraceQualityTier::Standard);
+        assert_eq!(latest.required, Some(TraceQualityTier::Detailed));
+        assert!(!latest.meets_requirement);
+        assert!(latest
+            .missing_detailed
+            .iter()
+            .any(|field| field.starts_with("decisions_made")));
+
+        let specific = repository.score_trace(Some(first_trace)).unwrap();
+        assert_eq!(specific.trace_id, first_trace);
+        assert_eq!(specific.achieved, TraceQualityTier::Minimal);
+        assert_eq!(specific.required, None);
+        assert!(specific.meets_requirement);
     }
 }

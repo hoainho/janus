@@ -39,7 +39,7 @@ The first implementation slice should port a narrow vertical path, such as
 The public command contract remains:
 
 ```bash
-scripts/harness <command> [flags]
+scripts/bin/harness-cli <command> [flags]
 ```
 
 Rust command parsing should use typed subcommands. Help output can improve, but
@@ -57,7 +57,7 @@ Migration behavior must keep schema versions idempotent.
 ## UI / Platform Impact
 
 The installer must detect supported platforms and download the matching
-prebuilt binary. The installed repository should still expose `scripts/harness`
+prebuilt binary. The installed repository should still expose `scripts/bin/harness-cli`
 as the command agents run.
 
 Supported platform targets, binary naming, cache path, and checksum format

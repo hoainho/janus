@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::domain::{
-    BacklogRecord, BoolFlag, CsvList, DecisionRecord, FrictionRecord, HarnessStats, InputType,
-    IntakeRecord, RiskLane, StoryMatrixRecord, TraceRecord,
+    BacklogFilter, BacklogRecord, BoolFlag, CsvList, DecisionRecord, FrictionRecord, HarnessStats,
+    InputType, IntakeRecord, RiskLane, StoryMatrixRecord, TraceRecord, TraceScoreResult,
 };
 use crate::infrastructure::{HarnessRepository, SqliteHarnessRepository};
 
@@ -150,12 +150,19 @@ impl HarnessService {
         self.repository.record_trace(input)
     }
 
+    pub fn score_trace(&self, id: Option<i64>) -> crate::infrastructure::Result<TraceScoreResult> {
+        self.repository.score_trace(id)
+    }
+
     pub fn query_matrix(&self) -> crate::infrastructure::Result<Vec<StoryMatrixRecord>> {
         self.repository.query_matrix()
     }
 
-    pub fn query_backlog(&self) -> crate::infrastructure::Result<Vec<BacklogRecord>> {
-        self.repository.query_backlog()
+    pub fn query_backlog(
+        &self,
+        filter: BacklogFilter,
+    ) -> crate::infrastructure::Result<Vec<BacklogRecord>> {
+        self.repository.query_backlog(filter)
     }
 
     pub fn query_decisions(&self) -> crate::infrastructure::Result<Vec<DecisionRecord>> {

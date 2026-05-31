@@ -197,11 +197,10 @@ This repo uses Harness. Before work, read:
 - `docs/FEATURE_INTAKE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CONTEXT_RULES.md`
-- `scripts/harness query matrix`
+- `scripts/bin/harness-cli query matrix`
 
-Use the Rust Harness CLI as the main operational tool. Run it through the
-stable repo-local entrypoint `scripts/harness`, which uses the prebuilt Rust
-binary at `scripts/bin/harness-cli` in installed projects.
+Use the Rust Harness CLI at `scripts/bin/harness-cli` as the main operational
+tool.
 <!-- HARNESS:END -->
 EOF
 }
@@ -362,6 +361,40 @@ download_file() {
   local url="$1"
   local target="$2"
   curl -fsSL "$url" -o "$target" || fail "Could not download $url"
+}
+
+read_cli_release_tag() {
+  local tag_file="scripts/harness-cli-release-tag"
+  local tag=""
+
+  if [ "$SOURCE_MODE" = "local" ]; then
+    if [ -f "$SOURCE_ROOT/$tag_file" ]; then
+      tag="$(awk 'NF && $1 !~ /^#/ { print $1; exit }' "$SOURCE_ROOT/$tag_file")"
+    fi
+  else
+    local tmp_file
+    tmp_file="$(mktemp)"
+    if curl -fsSL "$SOURCE_BASE_URL/$tag_file" -o "$tmp_file" 2>/dev/null; then
+      tag="$(awk 'NF && $1 !~ /^#/ { print $1; exit }' "$tmp_file")"
+    fi
+    rm -f "$tmp_file"
+  fi
+
+  printf '%s\n' "$tag"
+}
+
+default_cli_base_url() {
+  local release_tag="${HARNESS_CLI_RELEASE_TAG:-}"
+
+  if [ -z "$release_tag" ]; then
+    release_tag="$(read_cli_release_tag)"
+  fi
+
+  if [ -n "$release_tag" ] && [ "$release_tag" != "latest" ]; then
+    printf 'https://github.com/hoangnb24/harness-experimental/releases/download/%s\n' "$release_tag"
+  else
+    printf 'https://github.com/hoangnb24/harness-experimental/releases/latest/download\n'
+  fi
 }
 
 install_harness_cli_binary() {
@@ -598,7 +631,7 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DI
 fi
 
 if [ -z "$CLI_BASE_URL" ]; then
-  CLI_BASE_URL="https://github.com/hoangnb24/harness-experimental/releases/latest/download"
+  CLI_BASE_URL="$(default_cli_base_url)"
 fi
 
 if [ "$YES" -eq 0 ] && can_prompt; then
@@ -684,16 +717,9 @@ docs/templates/high-risk-story/execplan.md
 docs/templates/high-risk-story/overview.md
 docs/templates/high-risk-story/validation.md
 scripts/README.md
-scripts/harness
 scripts/schema/001-init.sql
 .gitignore
 EOF
-
-if [ "$DRY_RUN" -eq 0 ]; then
-  chmod 755 "$TARGET_DIR/scripts/harness"
-else
-  log "chmod    scripts/harness"
-fi
 
 refresh_agent_shim
 install_harness_cli_binary

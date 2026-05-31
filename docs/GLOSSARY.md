@@ -56,9 +56,15 @@ database schema, changing a public contract, or discovering missing validation.
 A documentation, template, validation, backlog, or decision update that makes
 future agent work safer or easier.
 
+## Backlog Outcome Loop
+
+The feedback workflow for Harness improvements: record predicted impact when a
+backlog item is created, then record actual measured outcome when the item is
+closed so future agents can compare expectation with result.
+
 ## Durable Layer
 
-The SQLite database and CLI (`scripts/harness`) that stores operational records
+The SQLite database and CLI (`scripts/bin/harness-cli`) that stores operational records
 (intakes, stories, decisions, backlog items, traces) as structured, queryable
 data. Policy docs describe how to work; the durable layer stores what happened.
 
