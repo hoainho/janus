@@ -90,6 +90,12 @@ Required for:
   external provider behavior.
 - Benchmark or release work where later review needs precise proof.
 
+For high-risk work, `decisions_made` in the trace summarizes what was decided.
+It does not replace a durable decision record. If the work changes behavior,
+architecture, authorization, data ownership, API shape, or validation
+requirements, add a `docs/decisions/NNNN-*.md` file and record it with
+`scripts/bin/harness-cli decision add`.
+
 ## Lane Mapping
 
 | Lane | Expected Tier | Minimum Trace Behavior |

@@ -7,6 +7,28 @@
 
 ---
 
+## Benchmark Triage After First Re-Run
+
+The first Phase 4 benchmark showed one isolated compliance miss and several
+command-shape friction loops:
+
+- T4 authentication included decision text in the trace but did not create a
+  durable decision record. High-risk work that changes auth, authorization,
+  data ownership, API behavior, architecture, or validation must add a
+  `docs/decisions/NNNN-*.md` record and a durable `decision` row with
+  `scripts/bin/harness-cli decision add`. Trace `--decisions` is evidence, not
+  the decision log.
+- Rust CLI v0.1.5 proof flags require numeric booleans. Use
+  `--unit 1 --integration 1 --e2e 0 --platform 0`; do not use `yes` or `no`.
+- `story verify <id>` runs the story's configured `verify_command` and records
+  pass/fail. It accepts only the story id. Proof flags belong to
+  `story update`.
+- Agents should prefer the command examples in `docs/HARNESS.md` and
+  `scripts/README.md` before repeated help probing. Re-run help only when the
+  command shape is still unknown.
+
+---
+
 ## What Phase 4 Is
 
 Phase 4 turns the harness from a system that *observes* agent work into one
@@ -389,4 +411,3 @@ Step 5: Cross-references and documentation
 - Benchmark trace quality stays at 2.5 (auto-scoring feedback ignored by agent).
 - `cargo test` or `cargo clippy` failures.
 - Functional score drops (verification overhead confused the agent).
-

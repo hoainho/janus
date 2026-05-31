@@ -108,7 +108,9 @@ Common commands:
 scripts/bin/harness-cli intake  --type <type> --summary <text> --lane <lane>
 scripts/bin/harness-cli story   add --id <id> --title <text> --lane <lane>
 scripts/bin/harness-cli story   update --id <id> --status <status>
+scripts/bin/harness-cli story   update --id <id> --unit 1 --integration 1 --e2e 0 --platform 0
 scripts/bin/harness-cli story   verify <id>
+scripts/bin/harness-cli decision add --id <id> --title <text> --doc docs/decisions/<file>.md
 scripts/bin/harness-cli trace   --summary <text> --outcome <outcome>
 scripts/bin/harness-cli score-trace
 scripts/bin/harness-cli query   matrix
@@ -243,6 +245,33 @@ scripts/bin/harness-cli story verify US-012
 `last_verified_at` and `last_verified_result`, and exits 0 on pass or 1 on fail.
 When `trace --story <id>` links to a story whose verification command has never
 passed, the trace still records but prints an advisory warning before close.
+
+`story verify` accepts only the story id. Configure the command with
+`story add --verify` or `story update --verify`. Record proof booleans with
+`story update`, using numeric values: `1` means yes and `0` means no. The Rust
+CLI rejects text values such as `yes` and `no`.
+
+## Decision Records
+
+High-risk work needs durable decisions when it changes behavior or architecture.
+For auth, authorization, data ownership, API shape, audit/security, or
+validation changes, record the decision in both places:
+
+1. Add a markdown file under `docs/decisions/` from
+   `docs/templates/decision.md`.
+2. Add or refresh the durable record:
+
+```bash
+scripts/bin/harness-cli decision add \
+  --id 0008-auth-boundary \
+  --title "Auth Boundary" \
+  --doc docs/decisions/0008-auth-boundary.md \
+  --notes "Accepted during T4 authentication work."
+```
+
+The trace `--decisions` field is useful evidence, but it is not the decision
+log. Do not treat decision text in a trace as satisfying the durable decision
+record requirement.
 
 ## Harness Change Policy
 

@@ -87,8 +87,17 @@ struct StoryArgs {
 #[derive(Subcommand, Debug)]
 enum StoryAction {
     Add(StoryAddArgs),
+    #[command(
+        after_help = "Proof flags use numeric booleans: --unit 1 --integration 1 --e2e 0 --platform 0"
+    )]
     Update(StoryUpdateArgs),
-    Verify { id: String },
+    #[command(
+        after_help = "story verify only accepts the story id. Configure proof with story add/update --verify, then record proof flags with story update."
+    )]
+    Verify {
+        /// Story id to verify.
+        id: String,
+    },
 }
 
 #[derive(Args, Debug)]
@@ -115,13 +124,13 @@ struct StoryUpdateArgs {
     status: Option<String>,
     #[arg(long)]
     evidence: Option<String>,
-    #[arg(long)]
+    #[arg(long, value_name = "0|1")]
     unit: Option<String>,
-    #[arg(long)]
+    #[arg(long, value_name = "0|1")]
     integration: Option<String>,
-    #[arg(long)]
+    #[arg(long, value_name = "0|1")]
     e2e: Option<String>,
-    #[arg(long)]
+    #[arg(long, value_name = "0|1")]
     platform: Option<String>,
     #[arg(long)]
     verify: Option<String>,
@@ -825,5 +834,28 @@ mod tests {
     #[test]
     fn cli_definition_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn story_help_documents_proof_command_shape() {
+        let mut command = Cli::command();
+        let story = command.find_subcommand_mut("story").unwrap();
+
+        let update_help = story
+            .find_subcommand_mut("update")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(update_help.contains("--unit <0|1>"));
+        assert!(update_help.contains("--integration <0|1>"));
+        assert!(update_help.contains("Proof flags use numeric booleans"));
+
+        let verify_help = story
+            .find_subcommand_mut("verify")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(verify_help.contains("story verify only accepts the story id"));
+        assert!(verify_help.contains("Configure proof with story add/update --verify"));
     }
 }
