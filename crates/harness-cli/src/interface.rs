@@ -88,6 +88,7 @@ struct StoryArgs {
 enum StoryAction {
     Add(StoryAddArgs),
     Update(StoryUpdateArgs),
+    Verify { id: String },
 }
 
 #[derive(Args, Debug)]
@@ -100,6 +101,8 @@ struct StoryAddArgs {
     lane: String,
     #[arg(long)]
     contract: Option<String>,
+    #[arg(long)]
+    verify: Option<String>,
     #[arg(long)]
     notes: Option<String>,
 }
@@ -120,6 +123,8 @@ struct StoryUpdateArgs {
     e2e: Option<String>,
     #[arg(long)]
     platform: Option<String>,
+    #[arg(long)]
+    verify: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -309,6 +314,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                     title: args.title,
                     risk_lane: RiskLane::from_str(&args.lane)?,
                     contract_doc: args.contract,
+                    verify_command: args.verify,
                     notes: args.notes,
                 })?;
                 println!("Story {} added.", args.id);
@@ -325,8 +331,19 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                     )?,
                     e2e: parse_optional_bool("story update: --e2e", args.e2e)?,
                     platform: parse_optional_bool("story update: --platform", args.platform)?,
+                    verify_command: args.verify,
                 })?;
                 println!("Story {} updated.", args.id);
+            }
+            StoryAction::Verify { id } => {
+                let result = service.verify_story(&id)?;
+                println!("Running: {}", result.command);
+                print!("{}", result.stdout);
+                print!("{}", result.stderr);
+                println!("Story {id} verification: {}", result.result);
+                if result.result == "fail" {
+                    std::process::exit(1);
+                }
             }
         },
         Command::Decision(args) => match args.action {
@@ -377,6 +394,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             }
         },
         Command::Trace(args) => {
+            let story_id = args.story.clone();
             let id = service.record_trace(TraceInput {
                 task_summary: args.summary,
                 intake_id: parse_optional_integer("trace: --intake", args.intake)?,
@@ -394,6 +412,11 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 errors: CsvList::from_optional(args.errors),
             })?;
             println!("Trace #{id} recorded.");
+            let result = service.score_trace(Some(id))?;
+            print_trace_score(&result, false);
+            if let Some(story_id) = story_id {
+                print_story_verify_warning(&service, &story_id)?;
+            }
         }
         Command::ScoreTrace(args) => {
             let id = parse_optional_integer("score-trace: --id", args.id)?;
@@ -473,6 +496,27 @@ fn print_trace_score(result: &TraceScoreResult, latest: bool) {
     );
 }
 
+fn print_story_verify_warning(
+    service: &HarnessService,
+    story_id: &str,
+) -> Result<(), InterfaceError> {
+    let status = service.story_verify_status(story_id)?;
+    let has_command = status
+        .verify_command
+        .as_deref()
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty());
+    if has_command && status.last_verified_result.as_deref() != Some("pass") {
+        println!();
+        println!(
+            "Warning: Story {} has verify_command but verification has not passed.",
+            status.id
+        );
+        println!("Run: harness-cli story verify {}", status.id);
+    }
+    Ok(())
+}
+
 fn print_missing_fields(label: &str, tier: TraceQualityTier, fields: &[String]) {
     if fields.is_empty() {
         return;
@@ -518,7 +562,7 @@ fn print_init_result(result: InitResult) {
     match result {
         InitResult::Created { db_path } => {
             println!("Creating harness database at {}", db_path.display());
-            println!("Schema version 1 applied.");
+            println!("Schema applied.");
         }
         InitResult::Existing { db_path, version } => {
             println!("Database already exists at {}", db_path.display());
@@ -526,8 +570,8 @@ fn print_init_result(result: InitResult) {
         }
         InitResult::MigratedExisting { db_path } => {
             println!("Database already exists at {}", db_path.display());
-            println!("No schema version found. Applying schema version 1.");
-            println!("Schema version 1 applied.");
+            println!("No schema version found. Applying schema.");
+            println!("Schema applied.");
         }
     }
 }

@@ -108,6 +108,13 @@ pub struct StoryMatrixRecord {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct StoryVerifyStatus {
+    pub id: String,
+    pub verify_command: Option<String>,
+    pub last_verified_result: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct BacklogRecord {
     pub id: i64,
     pub title: String,
