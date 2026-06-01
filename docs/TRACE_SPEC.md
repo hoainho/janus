@@ -90,6 +90,12 @@ Required for:
   external provider behavior.
 - Benchmark or release work where later review needs precise proof.
 
+For high-risk work, `decisions_made` in the trace summarizes what was decided.
+It does not replace a durable decision record. If the work changes behavior,
+architecture, authorization, data ownership, API shape, or validation
+requirements, add a `docs/decisions/NNNN-*.md` file and record it with
+`scripts/bin/harness-cli decision add`.
+
 ## Lane Mapping
 
 | Lane | Expected Tier | Minimum Trace Behavior |
@@ -188,9 +194,9 @@ Why this is insufficient for normal-lane Phase 2 work:
 Before the final response, check:
 
 - The trace tier matches the lane.
-- Run `scripts/bin/harness-cli score-trace` after recording the trace to mechanically
-  verify that the latest trace meets its linked intake lane requirement. Use
-  `scripts/bin/harness-cli score-trace --id N` when reviewing a specific trace.
+- Review the score printed automatically by `scripts/bin/harness-cli trace`.
+  Use `scripts/bin/harness-cli score-trace --id N` when re-checking a specific
+  historical trace.
 - `files_changed` matches the actual changed-file set at a useful level.
 - `errors` names real blockers or is `none` for Detailed traces when the
   current CLI is used.

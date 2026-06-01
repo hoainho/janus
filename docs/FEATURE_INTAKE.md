@@ -87,7 +87,11 @@ Requirements:
 - Create a story folder using `docs/templates/high-risk-story/`.
 - Fill in `execplan.md`, `overview.md`, `design.md`, and `validation.md`.
 - Ask for human confirmation before implementation if direction is ambiguous.
-- Record a decision when behavior or architecture changes meaningfully.
+- Record a durable decision when behavior, architecture, authorization, data
+  ownership, API shape, or validation requirements change meaningfully. Use a
+  `docs/decisions/NNNN-*.md` file from `docs/templates/decision.md`, then add
+  or refresh the durable row with `scripts/bin/harness-cli decision add`.
+  Decision text in a trace is not a durable decision record.
 
 ## Risk Checklist
 

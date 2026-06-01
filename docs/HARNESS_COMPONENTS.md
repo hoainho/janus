@@ -26,9 +26,9 @@ Status values:
 | 3 | Tool access | Partial | `scripts/bin/harness-cli`, `scripts/README.md`, `crates/harness-cli/*`, `scripts/install-harness.sh`, `scripts/build-harness-cli-release.sh` | The Harness CLI exposes operational commands for intake, stories, decisions, backlog, traces, trace scoring, and queries. | No machine-readable tool registry, permission profile, or capability manifest exists yet. |
 | 4 | Project memory | Covered | `docs/HARNESS.md`, `docs/decisions/*`, `docs/GLOSSARY.md`, `docs/HARNESS_BACKLOG.md`, `docs/stories/*`, `harness.db`, `decision`, `backlog`, and `trace` tables | Decisions, backlog, stories, and traces preserve durable knowledge across tasks. | Future work should add staleness checks and summarize old traces. |
 | 5 | Task state | Covered | `scripts/bin/harness-cli query matrix`, `docs/TEST_MATRIX.md`, `intake` table, `story` table, `trace` table | Durable records track intake, story status, proof columns, and task traces. | Add lifecycle checks so in-progress stories cannot be forgotten. |
-| 6 | Observability | Partial | `docs/TRACE_SPEC.md`, `trace` table, `scripts/bin/harness-cli score-trace`, `scripts/bin/harness-cli query traces`, `scripts/bin/harness-cli query friction`, `docs/HARNESS_MATURITY.md` | Traces can be recorded, scored against tier rules, and reviewed with friction context. | No dashboard or benchmark ingestion exists in this repo. |
+| 6 | Observability | Partial | `docs/TRACE_SPEC.md`, `trace` table, `scripts/bin/harness-cli trace`, `scripts/bin/harness-cli score-trace`, `scripts/bin/harness-cli query traces`, `scripts/bin/harness-cli query friction`, `docs/HARNESS_MATURITY.md` | Traces are auto-scored when recorded, can be rescored by command, and can be reviewed with friction context. | No dashboard or benchmark ingestion exists in this repo. |
 | 7 | Failure attribution | Partial | `docs/HARNESS_COMPONENTS.md`, `docs/TRACE_SPEC.md`, `trace.errors`, `trace.harness_friction`, `docs/HARNESS_BACKLOG.md`, `backlog` table, `scripts/bin/harness-cli query friction` | Failures can be tied to files, components, friction, backlog proposals, and linked intake lane/type context. | No automated attribution from benchmark failures to harness components exists yet. |
-| 8 | Verification | Partial | `docs/TEST_MATRIX.md`, `scripts/bin/harness-cli query matrix`, `scripts/bin/harness-cli score-trace`, `story` proof columns, `.github/workflows/harness-cli-release.yml`, `docs/templates/validation-report.md` | Stories record proof columns, trace quality can be checked mechanically, and the release workflow verifies Rust CLI releases. | No generic verification runner, benchmark protocol file, or required final proof automation exists in this repo. |
+| 8 | Verification | Covered | `docs/TEST_MATRIX.md`, `scripts/bin/harness-cli query matrix`, `scripts/bin/harness-cli story verify`, `scripts/bin/harness-cli trace`, `scripts/bin/harness-cli score-trace`, `story.verify_command`, `story.last_verified_result`, `.github/workflows/harness-cli-release.yml`, `docs/templates/validation-report.md` | Stories can store and run mechanical proof commands, traces warn when linked story verification has not passed, trace quality can be checked mechanically, and release workflow verifies Rust CLI releases. | Batch story verification and benchmark ingestion remain future work. |
 | 9 | Permissions | Partial | `AGENTS.md`, `docs/HARNESS.md`, `docs/FEATURE_INTAKE.md`, `docs/ARCHITECTURE.md`, installer conflict handling in `scripts/install-harness.sh` | Policy describes when agents may update docs and when to ask before architecture or workflow changes. | Permissions are instruction-level only; no enforced policy layer or command allowlist exists. |
 | 10 | Entropy auditing | Partial | `docs/HARNESS_BACKLOG.md`, `backlog` table, `trace.harness_friction`, `docs/HARNESS_MATURITY.md` | Growth rule captures friction, backlog items can compare predicted impact to actual outcome, and Phase 2 defines maturity movement. | No drift detector, stale-doc audit, or entropy score exists. |
 | 11 | Intervention recording | Partial | `trace` table, `docs/decisions/*`, `docs/stories/*`, `docs/HARNESS.md` | Traces and decisions can record actions, decisions, and outcomes. | Human interventions are not separated from normal agent actions, and there is no review-event schema. |
@@ -38,8 +38,8 @@ Status values:
 | Component | Harness Equivalent | Status | Notes |
 | --- | --- | --- | --- |
 | System prompts | `AGENTS.md` plus Harness policy docs | Covered | `AGENTS.md` is the stable shim; `docs/HARNESS.md`, `docs/FEATURE_INTAKE.md`, and `docs/CONTEXT_RULES.md` carry evolving operating instructions. |
-| Tool descriptions | `scripts/README.md`, `docs/HARNESS.md`, `docs/TRACE_SPEC.md`, CLI help from `crates/harness-cli/src/interface.rs` | Partial | Commands and trace scoring are documented, but there is no standalone tool schema or generated command reference. |
-| Tool implementations | `scripts/bin/harness-cli`, `crates/harness-cli/*`, `scripts/schema/001-init.sql` | Covered | The Rust CLI is the primary durable-layer implementation and stable repo-local entrypoint. |
+| Tool descriptions | `scripts/README.md`, `docs/HARNESS.md`, `docs/TRACE_SPEC.md`, CLI help from `crates/harness-cli/src/interface.rs` | Partial | Commands, story verification, and trace scoring are documented, but there is no standalone tool schema or generated command reference. |
+| Tool implementations | `scripts/bin/harness-cli`, `crates/harness-cli/*`, `scripts/schema/001-init.sql`, `scripts/schema/002-story-verify.sql` | Covered | The Rust CLI is the primary durable-layer implementation and stable repo-local entrypoint. |
 | Middleware | installer safety logic, feature intake workflow | Partial | The installer and intake process mediate work, but there is no runtime middleware enforcing policies. |
 | Skills | `docs/templates/*`, `docs/FEATURE_INTAKE.md`, `docs/CONTEXT_RULES.md`, `docs/TRACE_SPEC.md` | Partial | Reusable procedures exist as markdown, not executable or installable agent skills. |
 | Sub-agents | None in this repository | Missing | No delegated specialist agents or sub-agent protocols exist. |
@@ -60,6 +60,7 @@ one Runtime Substrate responsibility.
 | `Cargo.lock` | Tool access | Verification |
 | `PHASE2.md` | Task specification | Observability, context selection |
 | `PHASE3.md` | Task specification | Observability, verification, entropy auditing |
+| `PHASE4.md` | Task specification | Verification, observability, task state |
 | `crates/harness-cli/Cargo.toml` | Tool access | Verification |
 | `crates/harness-cli/src/main.rs` | Tool access | Tool implementation |
 | `crates/harness-cli/src/domain.rs` | Tool access | Task state, verification |
@@ -112,6 +113,7 @@ one Runtime Substrate responsibility.
 | `scripts/install-harness.sh` | Tool access | Permissions |
 | `scripts/build-harness-cli-release.sh` | Verification | Tool access |
 | `scripts/schema/001-init.sql` | Task state | Observability, project memory |
+| `scripts/schema/002-story-verify.sql` | Verification | Task state, project memory |
 | `.github/ISSUE_TEMPLATE/agent-failure-case.md` | Failure attribution | Entropy auditing |
 | `.github/ISSUE_TEMPLATE/pattern-request.md` | Entropy auditing | Intervention recording |
 | `.github/ISSUE_TEMPLATE/real-world-example.md` | Project memory | Intervention recording |
@@ -119,8 +121,8 @@ one Runtime Substrate responsibility.
 
 ## Coverage Summary
 
-- Covered: 4/11 responsibilities.
-- Partial: 7/11 responsibilities.
+- Covered: 5/11 responsibilities.
+- Partial: 6/11 responsibilities.
 - Missing: 0/11 responsibilities.
 
 Covered responsibilities:
@@ -129,12 +131,12 @@ Covered responsibilities:
 - Context selection.
 - Project memory.
 - Task state.
+- Verification.
 Partial responsibilities:
 
 - Tool access.
 - Observability.
 - Failure attribution.
-- Verification.
 - Permissions.
 - Entropy auditing.
 - Intervention recording.
