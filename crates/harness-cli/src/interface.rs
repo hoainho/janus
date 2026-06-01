@@ -11,14 +11,15 @@ use crate::application::{
     StoryUpdateInput, TraceInput,
 };
 use crate::domain::{
-    parse_optional_integer, BacklogFilter, BacklogRecord, BoolFlag, CsvList, DecisionRecord,
-    FrictionRecord, HarnessStats, InputType, IntakeRecord, RiskLane, StoryMatrixRecord,
-    TraceQualityTier, TraceRecord, TraceScoreResult,
+    parse_optional_integer, proof_display, BacklogFilter, BacklogRecord, BoolFlag, CsvList,
+    DecisionRecord, FrictionRecord, HarnessStats, InputType, IntakeRecord, RiskLane,
+    StoryMatrixRecord, TraceQualityTier, TraceRecord, TraceScoreResult, RISK_LANE_HELP,
 };
 
 #[derive(Parser, Debug)]
-#[command(name = "harness")]
+#[command(name = "harness-cli")]
 #[command(about = "durable layer for the project harness", long_about = None)]
+#[command(version)]
 pub struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -49,12 +50,13 @@ enum Command {
 }
 
 #[derive(Args, Debug)]
+#[command(after_help = RISK_LANE_HELP)]
 struct IntakeArgs {
     #[arg(long = "type")]
     input_type: String,
     #[arg(long)]
     summary: String,
-    #[arg(long)]
+    #[arg(long, value_name = "tiny|normal|high-risk")]
     lane: String,
     #[arg(long)]
     flags: Option<String>,
@@ -86,9 +88,10 @@ struct StoryArgs {
 
 #[derive(Subcommand, Debug)]
 enum StoryAction {
+    #[command(after_help = RISK_LANE_HELP)]
     Add(StoryAddArgs),
     #[command(
-        after_help = "Proof flags use numeric booleans: --unit 1 --integration 1 --e2e 0 --platform 0"
+        after_help = "Proof flags use numeric booleans: --unit 1 --integration 1 --e2e 0 --platform 0. Do not use yes/no."
     )]
     Update(StoryUpdateArgs),
     #[command(
@@ -106,7 +109,7 @@ struct StoryAddArgs {
     id: String,
     #[arg(long)]
     title: String,
-    #[arg(long)]
+    #[arg(long, value_name = "tiny|normal|high-risk")]
     lane: String,
     #[arg(long)]
     contract: Option<String>,
@@ -174,6 +177,7 @@ struct BacklogArgs {
 
 #[derive(Subcommand, Debug)]
 enum BacklogAction {
+    #[command(after_help = RISK_LANE_HELP)]
     Add(BacklogAddArgs),
     Close(BacklogCloseArgs),
 }
@@ -188,7 +192,7 @@ struct BacklogAddArgs {
     pain: Option<String>,
     #[arg(long)]
     suggestion: Option<String>,
-    #[arg(long)]
+    #[arg(long, value_name = "tiny|normal|high-risk")]
     risk: Option<String>,
     #[arg(long)]
     predicted: Option<String>,
@@ -252,6 +256,13 @@ struct QueryArgs {
 }
 
 #[derive(Args, Debug)]
+struct MatrixQueryArgs {
+    /// Render proof flags as CLI input values, 1 and 0, instead of yes and no.
+    #[arg(long)]
+    numeric: bool,
+}
+
+#[derive(Args, Debug)]
 struct BacklogQueryArgs {
     /// Show only proposed and accepted backlog items.
     #[arg(long, conflicts_with = "closed")]
@@ -264,7 +275,7 @@ struct BacklogQueryArgs {
 #[derive(Subcommand, Debug)]
 enum QueryView {
     /// Test matrix.
-    Matrix,
+    Matrix(MatrixQueryArgs),
     /// Harness improvement proposals.
     Backlog(BacklogQueryArgs),
     /// Decision records.
@@ -372,6 +383,9 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 let result = service.verify_decision(&id)?;
                 println!("Running: {}", result.command);
                 println!("Decision {id} verification: {}", result.result);
+                if result.result == "fail" {
+                    std::process::exit(1);
+                }
             }
         },
         Command::Backlog(args) => match args.action {
@@ -436,7 +450,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             }
         }
         Command::Query(args) => match args.view {
-            QueryView::Matrix => print_matrix(&service.query_matrix()?),
+            QueryView::Matrix(args) => print_matrix(&service.query_matrix()?, args.numeric),
             QueryView::Backlog(args) => {
                 print_backlog(&service.query_backlog(backlog_filter(&args))?)
             }
@@ -615,7 +629,7 @@ fn resolve_context() -> Result<HarnessContext, InterfaceError> {
     })
 }
 
-fn print_matrix(records: &[StoryMatrixRecord]) {
+fn print_matrix(records: &[StoryMatrixRecord], numeric: bool) {
     let rows = records
         .iter()
         .map(|record| {
@@ -623,10 +637,10 @@ fn print_matrix(records: &[StoryMatrixRecord]) {
                 record.id.clone(),
                 record.title.clone(),
                 record.status.clone(),
-                record.unit.clone(),
-                record.integration.clone(),
-                record.e2e.clone(),
-                record.platform.clone(),
+                proof_display(record.unit, numeric),
+                proof_display(record.integration, numeric),
+                proof_display(record.e2e, numeric),
+                proof_display(record.platform, numeric),
                 record.evidence.clone().unwrap_or_default(),
             ]
         })
@@ -857,5 +871,47 @@ mod tests {
             .to_string();
         assert!(verify_help.contains("story verify only accepts the story id"));
         assert!(verify_help.contains("Configure proof with story add/update --verify"));
+    }
+
+    #[test]
+    fn command_help_documents_lane_values_and_version() {
+        let mut command = Cli::command();
+        assert!(command.render_long_help().to_string().contains("--version"));
+
+        let intake_help = command
+            .find_subcommand_mut("intake")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(intake_help.contains("--lane <tiny|normal|high-risk>"));
+        assert!(intake_help.contains("Use tiny instead of low"));
+
+        let story_add_help = command
+            .find_subcommand_mut("story")
+            .unwrap()
+            .find_subcommand_mut("add")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(story_add_help.contains("--lane <tiny|normal|high-risk>"));
+
+        let backlog_add_help = command
+            .find_subcommand_mut("backlog")
+            .unwrap()
+            .find_subcommand_mut("add")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(backlog_add_help.contains("--risk <tiny|normal|high-risk>"));
+        assert!(backlog_add_help.contains("Accepted lanes"));
+
+        let matrix_help = command
+            .find_subcommand_mut("query")
+            .unwrap()
+            .find_subcommand_mut("matrix")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(matrix_help.contains("--numeric"));
     }
 }

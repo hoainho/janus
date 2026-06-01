@@ -12,9 +12,9 @@ use crate::application::{
     StoryAddInput, StoryUpdateInput, StoryVerifyResult, TraceInput,
 };
 use crate::domain::{
-    normalize_token, score_trace, yes_no, BacklogFilter, BacklogRecord, DecisionRecord,
-    FrictionRecord, HarnessStats, IntakeRecord, RiskLane, StoryMatrixRecord, StoryVerifyStatus,
-    TraceRecord, TraceScoreResult, TraceScoreSource,
+    normalize_token, score_trace, BacklogFilter, BacklogRecord, DecisionRecord, FrictionRecord,
+    HarnessStats, IntakeRecord, RiskLane, StoryMatrixRecord, StoryVerifyStatus, TraceRecord,
+    TraceScoreResult, TraceScoreSource,
 };
 
 pub type Result<T> = std::result::Result<T, HarnessInfraError>;
@@ -27,9 +27,9 @@ pub enum HarnessInfraError {
     MissingSchema(String),
     #[error("brownfield import: missing {0}")]
     MissingBrownfieldPath(String),
-    #[error("decision {0} has no verify_command")]
+    #[error("decision {0} has no verify_command. Configure one with: harness-cli decision add --id {0} --title <title> --verify \"<command>\"")]
     MissingDecisionVerifyCommand(String),
-    #[error("story {0} has no verify_command")]
+    #[error("story {0} has no verify_command. Configure one with: harness-cli story update --id {0} --verify \"<command>\"")]
     MissingStoryVerifyCommand(String),
     #[error("story update: story '{0}' not found")]
     StoryNotFound(String),
@@ -750,10 +750,10 @@ impl HarnessRepository for SqliteHarnessRepository {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 status: row.get(2)?,
-                unit: yes_no(row.get::<_, i64>(3)?),
-                integration: yes_no(row.get::<_, i64>(4)?),
-                e2e: yes_no(row.get::<_, i64>(5)?),
-                platform: yes_no(row.get::<_, i64>(6)?),
+                unit: row.get(3)?,
+                integration: row.get(4)?,
+                e2e: row.get(5)?,
+                platform: row.get(6)?,
                 evidence: row.get(7)?,
             })
         })?;
@@ -1493,7 +1493,7 @@ mod tests {
                 verify_command: None,
             })
             .unwrap();
-        assert_eq!(repository.query_matrix().unwrap()[0].unit, "yes");
+        assert_eq!(repository.query_matrix().unwrap()[0].unit, 1);
 
         let backlog_id = repository
             .add_backlog(BacklogAddInput {
@@ -1739,9 +1739,9 @@ implemented
         assert_eq!(matrix[0].id, "US-010");
         assert_eq!(matrix[0].title, "docs/product/tasks.md");
         assert_eq!(matrix[0].status, "implemented");
-        assert_eq!(matrix[0].unit, "yes");
-        assert_eq!(matrix[0].integration, "no");
-        assert_eq!(matrix[0].platform, "yes");
+        assert_eq!(matrix[0].unit, 1);
+        assert_eq!(matrix[0].integration, 0);
+        assert_eq!(matrix[0].platform, 1);
 
         let decisions = repository.query_decisions().unwrap();
         assert_eq!(decisions[0].id, "0007-test-decision");

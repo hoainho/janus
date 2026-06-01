@@ -18,7 +18,7 @@ command-shape friction loops:
   `docs/decisions/NNNN-*.md` record and a durable `decision` row with
   `scripts/bin/harness-cli decision add`. Trace `--decisions` is evidence, not
   the decision log.
-- Rust CLI v0.1.5 proof flags require numeric booleans. Use
+- Rust CLI proof flags require numeric booleans. Use
   `--unit 1 --integration 1 --e2e 0 --platform 0`; do not use `yes` or `no`.
 - `story verify <id>` runs the story's configured `verify_command` and records
   pass/fail. It accepts only the story id. Proof flags belong to

@@ -114,8 +114,10 @@ scripts/bin/harness-cli decision add --id <id> --title <text> --doc docs/decisio
 scripts/bin/harness-cli trace   --summary <text> --outcome <outcome>
 scripts/bin/harness-cli score-trace
 scripts/bin/harness-cli query   matrix
+scripts/bin/harness-cli query   matrix --numeric
 scripts/bin/harness-cli query   backlog
 scripts/bin/harness-cli query   stats
+scripts/bin/harness-cli --version
 ```
 
 ## Source Hierarchy
@@ -211,6 +213,10 @@ patterns can be queried later:
 scripts/bin/harness-cli query friction
 ```
 
+Backlog risk uses the same lane vocabulary as intake and stories:
+`tiny`, `normal`, or `high-risk`. Use `--risk tiny` for low-risk follow-up
+items; `low` is not a valid lane.
+
 ## Task Loop
 
 For every task:
@@ -250,6 +256,10 @@ passed, the trace still records but prints an advisory warning before close.
 `story add --verify` or `story update --verify`. Record proof booleans with
 `story update`, using numeric values: `1` means yes and `0` means no. The Rust
 CLI rejects text values such as `yes` and `no`.
+
+Use `scripts/bin/harness-cli query matrix --numeric` when copying proof values
+back into `story update`. The default matrix output is human-readable
+`yes`/`no`; the numeric output mirrors CLI input.
 
 ## Decision Records
 
