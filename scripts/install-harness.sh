@@ -144,15 +144,17 @@ copy_file() {
 merge_gitignore() {
   local target="$1"
   local marker="# Harness durable layer"
-  local rules="harness.db
+local rules="harness.db
 harness.db-wal
 harness.db-shm
-scripts/bin/harness-cli"
+scripts/bin/harness-cli
+scripts/bin/harness-cli.exe"
 
-  if grep -Fxq "harness.db" "$target" &&
-     grep -Fxq "harness.db-wal" "$target" &&
-     grep -Fxq "harness.db-shm" "$target" &&
-     grep -Fxq "scripts/bin/harness-cli" "$target"; then
+if grep -Fxq "harness.db" "$target" &&
+   grep -Fxq "harness.db-wal" "$target" &&
+   grep -Fxq "harness.db-shm" "$target" &&
+   grep -Fxq "scripts/bin/harness-cli" "$target" &&
+   grep -Fxq "scripts/bin/harness-cli.exe" "$target"; then
     log "skip     .gitignore (harness rules already present)"
     SKIPPED=$((SKIPPED + 1))
     return
