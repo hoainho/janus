@@ -41,6 +41,12 @@ indicators.
 The expected depth of a task trace: minimal for tiny work, standard for normal
 work, and detailed for high-risk work.
 
+## Verification Gate
+
+An advisory Harness check that runs or inspects mechanical proof before a task
+is closed. In Phase 4, `story verify <id>` executes a story's `verify_command`,
+and `trace --story <id>` warns when that story's verification has not passed.
+
 ## Context Phase
 
 A phase of an agent task that changes what context should be read, such as

@@ -162,9 +162,10 @@ Current status:
 
 - Partially achieved by Phase 3. `scripts/bin/harness-cli score-trace` scores trace
   quality against tier rules, `query friction` includes linked intake context,
-  and the backlog outcome loop documents predicted impact versus actual
-  outcome. Full H3 still requires benchmark comparison output that attributes
-  moved or regressed responsibilities.
+  the `trace` command now prints that score at write time, and the backlog
+  outcome loop documents predicted impact versus actual outcome. Full H3 still
+  requires benchmark comparison output that attributes moved or regressed
+  responsibilities.
 
 Activated responsibilities:
 
@@ -182,8 +183,9 @@ Criteria:
 
 - A documented verification command or protocol runs the expected checks for a
   selected story and lane.
-- Story proof columns are updated from command output or a repeatable report.
-- Decision verification commands can be run in batch.
+- Stories can store and execute a `verify_command`.
+- Trace recording warns when a linked story has a verification command that has
+  not passed.
 - Missing validation evidence is surfaced before a task is marked implemented.
 
 Required files:
@@ -191,7 +193,7 @@ Required files:
 - H3 files.
 - A verification protocol or command reference.
 - Validation report examples tied to story proof columns.
-- Batch decision or story verification documentation.
+- Story verification command documentation.
 
 Benchmark indicators:
 
@@ -202,8 +204,10 @@ Benchmark indicators:
 
 Current status:
 
-- Not achieved. Current verification is manual through commands and story proof
-  fields.
+- Partially achieved by Phase 4. `scripts/bin/harness-cli story verify <id>`
+  runs story-level proof commands, records pass/fail state, and `trace --story`
+  warns before close when verification has not passed. H4 remains partial until
+  batch verification and proof-column automation exist.
 
 Activated responsibilities:
 
@@ -260,8 +264,8 @@ Activated responsibilities:
 | H0 | Passed | Harness docs, templates, and durable records exist. |
 | H1 | Achieved | `AGENTS.md`, `docs/HARNESS.md`, `docs/FEATURE_INTAKE.md`, `docs/ARCHITECTURE.md`, `docs/templates/*`, and `docs/TEST_MATRIX.md` exist. |
 | H2 | Achieved | `scripts/bin/harness-cli`, `scripts/schema/001-init.sql`, durable story records, `docs/HARNESS_COMPONENTS.md`, `docs/HARNESS_MATURITY.md`, `docs/TRACE_SPEC.md`, and `docs/CONTEXT_RULES.md` define the Phase 2 surface. |
-| H3 | Partial | Phase 3 adds `scripts/bin/harness-cli score-trace`, enriched friction context, and the backlog outcome loop. Component-level benchmark attribution remains open. |
-| H4 | Not achieved | No generic verification runner or batch proof updater exists. |
+| H3 | Partial | Phase 3 adds `scripts/bin/harness-cli score-trace`, enriched friction context, and the backlog outcome loop; Phase 4 auto-scores traces on write. Component-level benchmark attribution remains open. |
+| H4 | Partial | Phase 4 adds story-level `verify_command`, `story verify`, and trace-time verification warnings. Batch verification and proof-column automation remain open. |
 | H5 | Not achieved | No self-improvement protocol or automated evolution loop exists. |
 
 ## Responsibility Activation
@@ -286,3 +290,12 @@ Phase 3 starts the H2 to H3 transition. It claims active trace scoring and a
 documented improvement feedback loop, but it does not claim full H3 because
 benchmark comparison and component-level regression attribution are explicitly
 outside this repository's Phase 3 scope.
+
+## Phase 4 Interpretation
+
+Phase 4 starts the H3 to H4 transition. It gives stories the same mechanical
+verification pattern that decisions already had, records story verification
+results in the durable layer, auto-scores traces when they are written, and
+warns before close when a linked story's verification has not passed. It does
+not claim full H4 because benchmark execution, batch verification, and automatic
+proof-column updates remain separate work.
