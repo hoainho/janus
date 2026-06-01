@@ -13,7 +13,7 @@ verified against durable records.
 | Unit | Parse command flags into typed values; reject invalid lanes, statuses, booleans, and missing required flags. |
 | Integration | Create a temp database, apply schema, run migrated use cases, and verify rows with SQLite queries. |
 | E2E | Install Harness into a temp target, download or locate the prebuilt CLI, run `scripts/bin/harness-cli init`, `intake`, `query intakes`, and `trace`. |
-| Platform | Verify supported macOS and Linux binary selection, checksum validation, and clear unsupported-platform errors. |
+| Platform | Verify supported macOS, Linux, and Windows binary selection, checksum validation, and clear unsupported-platform errors. |
 | Performance | Query commands should remain fast on small local databases; no benchmark gate until larger trace volumes exist. |
 | Logs/Audit | Trace writes remain available through `scripts/bin/harness-cli trace` and `scripts/bin/harness-cli query traces`. |
 
@@ -30,9 +30,11 @@ verified against durable records.
 cargo fmt --check
 cargo test --workspace
 bash -n scripts/install-harness.sh
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-harness.ps1 -Directory <target> -Yes -DryRun
 scripts/bin/harness-cli --help
 bash -n scripts/build-harness-cli-release.sh
 scripts/build-harness-cli-release.sh
+scripts/build-harness-cli-release.sh --target x86_64-pc-windows-msvc
 scripts/bin/harness-cli query stats
 tmpdir=$(mktemp -d)
 HARNESS_DB="$tmpdir/harness.db" scripts/bin/harness-cli init
@@ -62,6 +64,18 @@ scripts/install-harness.sh --directory "$target" --yes
 "$target/scripts/bin/harness-cli" query stats
 test -x "$target/scripts/bin/harness-cli"
 rm -rf "$target"
+```
+
+Windows PowerShell smoke:
+
+```powershell
+$target = Join-Path $env:TEMP ("harness-" + [guid]::NewGuid().ToString("N"))
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-harness.ps1 -Directory $target -Yes
+& "$target\scripts\bin\harness-cli.exe" init
+& "$target\scripts\bin\harness-cli.exe" intake --type "Harness improvement" --summary "installed Windows binary smoke" --lane tiny
+& "$target\scripts\bin\harness-cli.exe" query stats
+Test-Path "$target\scripts\bin\harness-cli.exe"
+Remove-Item -Recurse -Force $target
 ```
 
 ## Acceptance Evidence
@@ -104,6 +118,9 @@ rm -rf "$target"
   `harness-cli-macos-x64`, `harness-cli-macos-x64.sha256`,
   `harness-cli-linux-x64`, `harness-cli-linux-x64.sha256`,
   `harness-cli-linux-arm64`, and `harness-cli-linux-arm64.sha256`.
+- Windows release extension expects two additional assets on the next CLI
+  release: `harness-cli-windows-x64.exe` and
+  `harness-cli-windows-x64.exe.sha256`.
 - Remote installer smoke passed from raw GitHub `main` plus
   `releases/latest/download`: the installer downloaded and verified the
   `macos-arm64` binary, preserved executable bits for `scripts/bin/harness-cli` and

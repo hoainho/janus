@@ -518,8 +518,9 @@ impl HarnessRepository for SqliteHarnessRepository {
             .filter(|value| !value.is_empty())
             .ok_or_else(|| HarnessInfraError::MissingDecisionVerifyCommand(id.to_owned()))?;
 
-        let status = Command::new("sh")
-            .arg("-c")
+        let (shell, flag) = verifier_shell();
+        let status = Command::new(shell)
+            .arg(flag)
             .arg(&verify_command)
             .current_dir(&self.repo_root)
             .status()?;
@@ -1099,6 +1100,14 @@ fn empty_to_none(value: String) -> Option<String> {
     }
 }
 
+fn verifier_shell() -> (&'static str, &'static str) {
+    if cfg!(windows) {
+        ("cmd", "/C")
+    } else {
+        ("sh", "-c")
+    }
+}
+
 fn is_decision_file_name(file_name: &str) -> bool {
     let Some((prefix, _)) = file_name.split_once('-') else {
         return false;
@@ -1204,14 +1213,19 @@ mod tests {
         );
         repository.init().unwrap();
 
-        let pwd_output = temp_dir.path().join("verify-pwd.txt");
+        let pwd_output = repo_root.join("verify-pwd.txt");
+        let verify_command = if cfg!(windows) {
+            "cd > verify-pwd.txt".to_owned()
+        } else {
+            "pwd > verify-pwd.txt".to_owned()
+        };
         repository
             .add_decision(DecisionAddInput {
                 id: "0001-test".to_owned(),
                 title: "Verify from root".to_owned(),
                 status: "accepted".to_owned(),
                 doc_path: None,
-                verify_command: Some(format!("pwd > {}", pwd_output.display())),
+                verify_command: Some(verify_command),
                 predicted_impact: None,
                 notes: None,
             })

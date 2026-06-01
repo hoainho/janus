@@ -5,8 +5,8 @@ This directory contains harness automation tools.
 ## Harness CLI
 
 The Rust Harness CLI is the primary interface for the durable layer. Installed
-projects use the prebuilt binary at `scripts/bin/harness-cli` for normal
-Harness work.
+projects use the prebuilt binary at `scripts/bin/harness-cli` on macOS/Linux or
+`scripts/bin/harness-cli.exe` on Windows for normal Harness work.
 
 ```bash
 scripts/bin/harness-cli init          # Create the database
@@ -20,12 +20,15 @@ scripts/bin/harness-cli query ...     # Query harness data, including backlog --
 scripts/bin/harness-cli migrate       # Apply pending schema migrations
 ```
 
-Run `scripts/bin/harness-cli help` or `scripts/bin/harness-cli query help` for full usage.
+Run `scripts/bin/harness-cli help` or `scripts/bin/harness-cli query help` for
+full usage. On Windows, use the same commands through
+`.\scripts\bin\harness-cli.exe`.
 
 The schema lives in `scripts/schema/` and is version-controlled. The database
 file (`harness.db`) is `.gitignore`d.
 
-Requires: the prebuilt Rust CLI at `scripts/bin/harness-cli`.
+Requires: the prebuilt Rust CLI at `scripts/bin/harness-cli` on macOS/Linux or
+`scripts/bin/harness-cli.exe` on Windows.
 
 Direct database inspection may still use SQLite tools, but normal Harness use
 should go through the Rust CLI.
@@ -82,12 +85,24 @@ intentional.
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 ```
 
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Yes
+```
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
 ```
 
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Merge -Yes
+```
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --refresh-agent-shim --yes
+```
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Merge -RefreshAgentShim -Yes
 ```
 
 `--refresh-agent-shim` backs up `AGENTS.md` before changing it. If the existing
@@ -102,13 +117,14 @@ validation commands. The installer script is not part of the installed project
 payload.
 
 By default the installer also downloads the prebuilt Rust Harness CLI for the
-current platform into `scripts/bin/harness-cli` and verifies its `.sha256`
-checksum before making it executable. A source branch can pin the release used
-by the installer through `scripts/harness-cli-release-tag`; Phase 3 pins
-`harness-cli-v0.1.4` so branch installs receive a Phase 3-built CLI. Set
-`HARNESS_CLI_RELEASE_TAG` to override that tag, or set `HARNESS_CLI_BASE_URL` to
-point at an alternate artifact directory, such as a local `file:///.../dist`
-directory created by `scripts/build-harness-cli-release.sh`.
+current platform into `scripts/bin/harness-cli` on macOS/Linux or
+`scripts/bin/harness-cli.exe` on Windows, then verifies its `.sha256` checksum.
+A source branch can pin the release used by the installer through
+`scripts/harness-cli-release-tag`; Phase 3 pins `harness-cli-v0.1.4` so branch
+installs receive a Phase 3-built CLI. Set `HARNESS_CLI_RELEASE_TAG` to override
+that tag, or set `HARNESS_CLI_BASE_URL` to point at an alternate artifact
+directory, such as a local `file:///.../dist` directory created by
+`scripts/build-harness-cli-release.sh`.
 
 ## Schema Migrations
 
@@ -145,13 +161,14 @@ Build the current-platform Rust CLI release artifact from the source repo:
 scripts/build-harness-cli-release.sh
 ```
 
-The script writes `dist/harness-cli-<platform>` and
-`dist/harness-cli-<platform>.sha256`. Supported labels are:
+The script writes `dist/harness-cli-<platform>` plus `.sha256` checksums. The
+Windows artifact includes the `.exe` suffix. Supported labels are:
 
 - `macos-arm64`
 - `macos-x64`
 - `linux-x64`
 - `linux-arm64`
+- `windows-x64`
 
 For cross-compilation, pass a Cargo target triple:
 
@@ -172,3 +189,5 @@ native hosted runners, and upload these release assets:
 - `harness-cli-linux-x64.sha256`
 - `harness-cli-linux-arm64`
 - `harness-cli-linux-arm64.sha256`
+- `harness-cli-windows-x64.exe`
+- `harness-cli-windows-x64.exe.sha256`

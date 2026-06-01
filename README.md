@@ -68,6 +68,12 @@ From a target project directory, run:
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 ```
 
+On Windows PowerShell, run:
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Yes
+```
+
 If the target already has `AGENTS.md`, `docs/`, or `scripts/`, choose one:
 
 ```bash
@@ -76,6 +82,14 @@ curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/mai
 
 # Back up and replace AGENTS.md, docs/, and scripts/
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --override --yes
+```
+
+```powershell
+# Update an existing Harness repo without moving existing files
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Merge -Yes
+
+# Back up and replace AGENTS.md, docs/, and scripts/
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Override -Yes
 ```
 
 Use `--merge` when a project already has Harness and you want to append newly
@@ -101,18 +115,24 @@ Or install into a specific path:
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --directory /path/to/project --yes
 ```
 
-Use `--dry-run` to preview changes before writing files.
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.ps1"))) -Directory C:\path\to\project -Yes
+```
+
+Use `--dry-run` on Bash or `-DryRun` on PowerShell to preview changes before
+writing files.
 
 The installer also downloads the prebuilt Harness CLI for the current platform,
 verifies its `.sha256` checksum, and installs it at
-`scripts/bin/harness-cli`. The Rust CLI is the main Harness tool and stable
-command path.
+`scripts/bin/harness-cli` on macOS/Linux or `scripts/bin/harness-cli.exe` on
+Windows. The Rust CLI is the main Harness tool and stable command path.
 
 Harness CLI release assets are published from tags by the
 `Harness CLI Release` GitHub Actions workflow. The installer expects each
 release to include `harness-cli-<platform>` and
 `harness-cli-<platform>.sha256` assets for macOS arm64, macOS x64, Linux x64,
-and Linux arm64.
+Linux arm64, and Windows x64. The Windows asset is
+`harness-cli-windows-x64.exe` plus `harness-cli-windows-x64.exe.sha256`.
 
 ## Try The Flow
 
