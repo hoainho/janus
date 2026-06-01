@@ -67,7 +67,7 @@ mechanical verification work.
 - `cargo clippy --workspace -- -D warnings`
 - `scripts/build-harness-cli-release.sh`
 - Rebuilt `scripts/bin/harness-cli`; `scripts/bin/harness-cli --version`
-  prints `harness-cli 0.1.6`.
+  prints `harness-cli 0.1.7`.
 - CLI smoke verified backlog `--risk` help, `query matrix --numeric`,
   invalid `--risk low` recovery text, invalid `--unit yes` recovery text,
   missing story `verify_command` recovery text, and failing `decision verify`

@@ -120,7 +120,7 @@ By default the installer also downloads the prebuilt Rust Harness CLI for the
 current platform into `scripts/bin/harness-cli` and verifies its `.sha256`
 checksum before making it executable. A source branch can pin the release used
 by the installer through `scripts/harness-cli-release-tag`; Phase 4 pins
-`harness-cli-v0.1.6` so branch installs receive a Phase 4-built CLI. Set
+`harness-cli-v0.1.7` so branch installs receive a Phase 4-built CLI. Set
 `HARNESS_CLI_RELEASE_TAG` to override that tag, or set `HARNESS_CLI_BASE_URL` to
 point at an alternate artifact directory, such as a local `file:///.../dist`
 directory created by `scripts/build-harness-cli-release.sh`.
