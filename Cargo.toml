@@ -4,4 +4,4 @@ members = ["crates/harness-cli"]
 
 [workspace.package]
 edition = "2021"
-repository = "https://github.com/hoangnb24/harness-experimental"
+repository = "https://github.com/hoangnb24/repository-harness"
