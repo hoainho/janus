@@ -16,6 +16,12 @@ Options:
                          Refresh an existing AGENTS.md into the small Harness
                          shim after backing it up. Old Harness-generated files
                          are replaced; custom files receive a marked block.
+      --claude           Also install or refresh CLAUDE.md so Claude Code
+                         auto-loads the harness context. Claude Code never
+                         auto-loads AGENTS.md; the shim @-imports AGENTS.md
+                         and docs/FEATURE_INTAKE.md inside a marked block.
+                         Existing CLAUDE.md files get the block appended
+                         after a backup; a stale block is refreshed in place.
       --override         On protected-path conflict, back up and replace
                          AGENTS.md, docs/, and scripts/.
       --force            Overwrite existing files after backing them up.
@@ -38,6 +44,7 @@ Examples:
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --yes
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --merge --yes
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --merge --refresh-agent-shim --yes
+  curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --claude --yes
 EOF
 }
 
@@ -207,6 +214,29 @@ tool.
 EOF
 }
 
+claude_shim_block() {
+  cat <<'EOF'
+<!-- HARNESS:BEGIN -->
+## Harness
+
+Claude Code loads this file into every session, but it does not auto-load
+`AGENTS.md`. The bare `@` lines below import the always-required harness
+context (the "Must in all lanes" set from `docs/CONTEXT_RULES.md`) at
+context-load time. Never wrap them in backticks; that disables the import.
+
+@AGENTS.md
+
+@docs/FEATURE_INTAKE.md
+
+Also run `scripts/bin/harness-cli query matrix` before starting work.
+
+Lane-dependent context (`README.md`, `docs/HARNESS.md`, `docs/ARCHITECTURE.md`,
+`docs/CONTEXT_RULES.md`, product docs, stories, decisions) is intentionally not
+imported — read it per lane, as `docs/CONTEXT_RULES.md` prescribes.
+<!-- HARNESS:END -->
+EOF
+}
+
 is_old_harness_agent_file() {
   local target="$1"
 
@@ -330,6 +360,99 @@ refresh_agent_shim() {
     log "updated  AGENTS.md (refreshed Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/AGENTS.md)"
   fi
   UPDATED=$((UPDATED + 1))
+}
+
+backup_claude_file() {
+  local target="$TARGET_DIR/CLAUDE.md"
+
+  [ -e "$target" ] || return 0
+  mkdir -p "$BACKUP_DIR"
+  [ -e "$BACKUP_DIR/CLAUDE.md" ] && return 0
+  cp -p "$target" "$BACKUP_DIR/CLAUDE.md"
+}
+
+write_claude_shim() {
+  [ "$INSTALL_CLAUDE_SHIM" -eq 1 ] || return 0
+
+  local target="$TARGET_DIR/CLAUDE.md"
+  local block_tmp tmp
+
+  if [ "$SOURCE_MODE" = "local" ] && [ -e "$target" ] &&
+     [ "$SOURCE_ROOT/CLAUDE.md" -ef "$target" ]; then
+    log "skip     CLAUDE.md (source file)"
+    SKIPPED=$((SKIPPED + 1))
+    return 0
+  fi
+
+  block_tmp="$(mktemp)"
+  claude_shim_block > "$block_tmp"
+
+  if [ -e "$target" ] &&
+     grep -Fq "<!-- HARNESS:BEGIN -->" "$target" &&
+     grep -Fq "<!-- HARNESS:END -->" "$target"; then
+    local current_tmp
+    current_tmp="$(mktemp)"
+    awk '
+      /<!-- HARNESS:BEGIN -->/ { in_block = 1 }
+      in_block { print }
+      /<!-- HARNESS:END -->/ { in_block = 0 }
+    ' "$target" > "$current_tmp"
+    if cmp -s "$current_tmp" "$block_tmp"; then
+      log "skip     CLAUDE.md (Harness block current)"
+      SKIPPED=$((SKIPPED + 1))
+      rm -f "$current_tmp" "$block_tmp"
+      return 0
+    fi
+    rm -f "$current_tmp"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   CLAUDE.md (refresh marked Harness block, backup first)"
+    else
+      backup_claude_file
+      tmp="$(mktemp)"
+      awk '
+        /<!-- HARNESS:BEGIN -->/ {
+          while ((getline line < block_file) > 0) {
+            print line
+          }
+          in_block = 1
+          next
+        }
+        /<!-- HARNESS:END -->/ && in_block {
+          in_block = 0
+          next
+        }
+        !in_block { print }
+      ' block_file="$block_tmp" "$target" > "$tmp"
+      mv "$tmp" "$target"
+      log "updated  CLAUDE.md (refreshed Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/CLAUDE.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  elif [ -e "$target" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   CLAUDE.md (append Harness block, backup first)"
+    else
+      backup_claude_file
+      {
+        printf '\n'
+        cat "$block_tmp"
+      } >> "$target"
+      log "updated  CLAUDE.md (appended Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/CLAUDE.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  else
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "create   CLAUDE.md"
+    else
+      {
+        printf '# Project Rules\n\n'
+        cat "$block_tmp"
+      } > "$target"
+      log "created  CLAUDE.md"
+    fi
+    CREATED=$((CREATED + 1))
+  fi
+  rm -f "$block_tmp"
 }
 
 detect_cli_platform() {
@@ -549,6 +672,7 @@ FORCE=0
 DRY_RUN=0
 INSTALL_RUST_CLI=1
 REFRESH_AGENT_SHIM=0
+INSTALL_CLAUDE_SHIM=0
 REQUESTED_CONFLICT_ACTION=""
 POSITIONAL_TARGET=""
 
@@ -573,6 +697,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --refresh-agent-shim)
       REFRESH_AGENT_SHIM=1
+      shift
+      ;;
+    --claude)
+      INSTALL_CLAUDE_SHIM=1
       shift
       ;;
     --override)
@@ -726,6 +854,7 @@ scripts/schema/002-story-verify.sql
 EOF
 
 refresh_agent_shim
+write_claude_shim
 install_harness_cli_binary
 
 log ""
