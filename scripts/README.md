@@ -206,3 +206,11 @@ native hosted runners, and upload these release assets:
 - `harness-cli-linux-arm64.sha256`
 - `harness-cli-windows-x64.exe`
 - `harness-cli-windows-x64.exe.sha256`
+
+Merged PRs are handled by `.github/workflows/post-merge-maintenance.yml`. The
+workflow always prepends a PR summary to `CHANGELOG.md`. If the merged PR
+changed `crates/harness-cli/`, `scripts/schema/`, Cargo metadata, or
+`scripts/build-harness-cli-release.sh`, it also increments the CLI patch
+version, updates `scripts/harness-cli-release-tag`, creates a matching
+`harness-cli-v*` tag, and calls the reusable Harness CLI release workflow for
+the tagged ref.

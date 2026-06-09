@@ -145,6 +145,12 @@ release to include `harness-cli-<platform>` and
 Linux arm64, and Windows x64. The Windows asset is
 `harness-cli-windows-x64.exe` plus `harness-cli-windows-x64.exe.sha256`.
 
+Merged pull requests are recorded in `CHANGELOG.md` by the
+`Post-Merge Maintenance` workflow. When a merged PR changes the Rust CLI source,
+schema, Cargo metadata, or CLI release packaging, that workflow bumps the CLI
+patch version, updates `scripts/harness-cli-release-tag`, creates a
+`harness-cli-v*` tag, and runs the Harness CLI release build for that tag.
+
 ## Try The Flow
 
 The fastest way to understand the harness is to inspect the tiny demo:

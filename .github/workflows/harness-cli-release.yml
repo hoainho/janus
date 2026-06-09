@@ -11,6 +11,16 @@ on:
         description: "Existing or new GitHub Release tag to upload artifacts to"
         required: false
         type: string
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "Existing or new GitHub Release tag to upload artifacts to"
+        required: true
+        type: string
+      checkout_ref:
+        description: "Git ref to build. Defaults to the workflow ref."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -25,6 +35,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -71,6 +83,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -100,10 +114,10 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-24.04
-    if: ${{ github.event_name == 'push' || github.event.inputs.release_tag != '' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.release_tag != '' }}
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
