@@ -64,3 +64,8 @@ conditional CLI release preparation after merged pull requests.
 - `cargo clippy --workspace -- -D warnings`: passed.
 - `bash -n scripts/install-harness.sh && bash -n scripts/build-harness-cli-release.sh`: passed.
 - `actionlint`: not installed locally, so GitHub-specific workflow linting was not run.
+- 2026-06-09 follow-up: GitHub run `27180707313` failed in
+  `Update maintenance files` because changelog bullet `printf` formats began
+  with `-` and were parsed as options on the runner. The workflow now uses
+  `printf --` for all bullet formats. Local reproduction of the PR #13
+  changelog entry passed.
