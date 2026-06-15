@@ -859,6 +859,7 @@ scripts/schema/001-init.sql
 scripts/schema/002-story-verify.sql
 scripts/schema/003-tool-registry.sql
 scripts/schema/004-intervention.sql
+scripts/schema/005-tool-extensions.sql
 .gitignore
 EOF
 
