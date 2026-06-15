@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-15 - PR #20
+
+- fix: add missing files to installer file lists (@NguyenQS504092s)
+- Merge commit: `e3a83390be59eafcf361afe61672db1a9ed0a440`
+- Harness CLI release: not required
+- Changed files:
+  - `scripts/install-harness.ps1`
+  - `scripts/install-harness.sh`
+
 ## 2026-06-13 - PR #19
 
 - feat(cli): kind-aware inbound tool registry with presence scanning (@thanh-dong)
