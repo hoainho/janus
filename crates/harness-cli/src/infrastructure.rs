@@ -9,17 +9,17 @@ use thiserror::Error;
 
 use crate::application::{
     BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, DecisionAddInput,
-    DecisionVerifyResult, HarnessContext, InitResult, IntakeInput, InterventionAddInput,
-    InterventionFilter, MigrateResult, QueryTable, StoryAddInput, StoryUpdateInput,
-    StoryVerifyResult, ToolRegisterInput, TraceInput,
+    DecisionVerifyResult, GateLogInput, HarnessContext, InitResult, IntakeInput,
+    InterventionAddInput, InterventionFilter, MigrateResult, QueryTable, SetT4VerdictInput,
+    StoryAddInput, StoryUpdateInput, StoryVerifyResult, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
     compiled_tool_registry, normalize_token, score_context, score_trace, validate_tool_description,
     AuditFinding, AuditResult, BacklogFilter, BacklogRecord, ContextScoreResult,
-    ContextScoreSource, DecisionRecord, FrictionRecord, HarnessStats, ImprovementProposal,
-    IntakeRecord, InterventionRecord, RiskLane, StoryMatrixRecord, StoryVerifyAllItem,
-    StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec, ToolEntry, TraceRecord, TraceScoreResult,
-    TraceScoreSource,
+    ContextScoreSource, DecisionRecord, FrictionRecord, GcrRecord, GateLogRecord, HarnessStats,
+    ImprovementProposal, IntakeRecord, InterventionRecord, RiskLane, StoryExportRecord,
+    StoryMatrixRecord, StoryVerifyAllItem, StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec,
+    ToolEntry, TraceRecord, TraceScoreResult, TraceScoreSource,
 };
 
 pub type Result<T> = std::result::Result<T, HarnessInfraError>;
@@ -108,6 +108,15 @@ pub trait HarnessRepository {
     fn audit(&self) -> Result<AuditResult>;
     fn propose(&self, commit: bool) -> Result<Vec<ImprovementProposal>>;
     fn query_sql(&self, sql: &str) -> Result<QueryTable>;
+    fn record_gate_log(&self, input: GateLogInput) -> Result<i64>;
+    fn query_gate_log(&self) -> Result<Vec<GateLogRecord>>;
+    fn set_t4_verdict(&self, input: SetT4VerdictInput) -> Result<()>;
+    /// All stories with proof flags, lane, verify result, and T4 fields — for `export matrix`.
+    fn query_export_matrix(&self) -> Result<Vec<StoryExportRecord>>;
+    /// Single story with the same projection — for `export story --id <ID>`.
+    fn query_export_story(&self, id: &str) -> Result<StoryExportRecord>;
+    /// Per-story gate-compliance rate, plus an overall-average summary row.
+    fn query_gcr(&self) -> Result<Vec<GcrRecord>>;
 }
 
 #[derive(Debug)]
@@ -135,12 +144,14 @@ impl SqliteHarnessRepository {
 
         let connection = Connection::open(&self.db_path)?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
+        connection.busy_timeout(std::time::Duration::from_secs(10))?;
         Ok(connection)
     }
 
     fn open_or_create(&self) -> Result<Connection> {
         let connection = Connection::open(&self.db_path)?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
+        connection.busy_timeout(std::time::Duration::from_secs(10))?;
         Ok(connection)
     }
 
@@ -469,8 +480,9 @@ impl HarnessRepository for SqliteHarnessRepository {
         let connection = self.open_existing()?;
         connection.execute(
             "INSERT INTO intake (
-                input_type, summary, risk_lane, risk_flags, affected_docs, story_id, notes
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);",
+                input_type, summary, risk_lane, risk_flags, affected_docs, story_id, notes,
+                lane_checklist
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8);",
             params![
                 input.input_type.as_db_value(),
                 input.summary,
@@ -479,6 +491,7 @@ impl HarnessRepository for SqliteHarnessRepository {
                 input.affected_docs.as_json_text(),
                 input.story_id,
                 input.notes,
+                input.lane_checklist,
             ],
         )?;
 
@@ -1397,6 +1410,240 @@ impl HarnessRepository for SqliteHarnessRepository {
             headers,
             rows: collect_rows(rows)?,
         })
+    }
+
+    fn record_gate_log(&self, input: GateLogInput) -> Result<i64> {
+        let connection = self.open_existing()?;
+        connection.execute(
+            "INSERT INTO gate_log (gate, story_id, action, decision, detail, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6);",
+            params![
+                input.gate,
+                input.story_id,
+                input.action,
+                input.decision,
+                input.detail,
+                input.source,
+            ],
+        )?;
+        Ok(connection.last_insert_rowid())
+    }
+
+    fn query_gate_log(&self) -> Result<Vec<GateLogRecord>> {
+        let connection = self.open_existing()?;
+        let mut statement = connection.prepare(
+            "SELECT id, created_at, gate, story_id, action, decision, detail, source
+             FROM gate_log ORDER BY id DESC LIMIT 50;",
+        )?;
+
+        let rows = statement.query_map([], |row| {
+            Ok(GateLogRecord {
+                id: row.get(0)?,
+                created_at: row.get(1)?,
+                gate: row.get(2)?,
+                story_id: row.get(3)?,
+                action: row.get(4)?,
+                decision: row.get(5)?,
+                detail: row.get(6)?,
+                source: row.get(7)?,
+            })
+        })?;
+
+        collect_rows(rows)
+    }
+
+    fn set_t4_verdict(&self, input: SetT4VerdictInput) -> Result<()> {
+        let connection = self.open_existing()?;
+        connection.execute(
+            "UPDATE story
+             SET t4_verdict=?1, t4_notes=?2, t4_recorded_at=datetime('now')
+             WHERE id=?3;",
+            params![input.verdict, input.notes, input.id],
+        )?;
+
+        if connection.changes() == 0 {
+            return Err(HarnessInfraError::StoryNotFound(input.id));
+        }
+        Ok(())
+    }
+
+    fn query_export_matrix(&self) -> Result<Vec<StoryExportRecord>> {
+        let connection = self.open_existing()?;
+        let mut statement = connection.prepare(
+            "SELECT id, title, risk_lane, status,
+                    unit_proof, integration_proof, e2e_proof, platform_proof,
+                    last_verified_result, t4_verdict, t4_notes, evidence
+             FROM story ORDER BY id;",
+        )?;
+
+        let rows = statement.query_map([], |row| {
+            Ok(StoryExportRecord {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                lane: row.get(2)?,
+                status: row.get(3)?,
+                unit: row.get(4)?,
+                integration: row.get(5)?,
+                e2e: row.get(6)?,
+                platform: row.get(7)?,
+                last_verified_result: row.get(8)?,
+                t4_verdict: row.get(9)?,
+                t4_notes: row.get(10)?,
+                evidence: row.get(11)?,
+            })
+        })?;
+
+        collect_rows(rows)
+    }
+
+    fn query_export_story(&self, id: &str) -> Result<StoryExportRecord> {
+        let connection = self.open_existing()?;
+        connection
+            .query_row(
+                "SELECT id, title, risk_lane, status,
+                        unit_proof, integration_proof, e2e_proof, platform_proof,
+                        last_verified_result, t4_verdict, t4_notes, evidence
+                 FROM story WHERE id=?1;",
+                params![id],
+                |row| {
+                    Ok(StoryExportRecord {
+                        id: row.get(0)?,
+                        title: row.get(1)?,
+                        lane: row.get(2)?,
+                        status: row.get(3)?,
+                        unit: row.get(4)?,
+                        integration: row.get(5)?,
+                        e2e: row.get(6)?,
+                        platform: row.get(7)?,
+                        last_verified_result: row.get(8)?,
+                        t4_verdict: row.get(9)?,
+                        t4_notes: row.get(10)?,
+                        evidence: row.get(11)?,
+                    })
+                },
+            )
+            .optional()?
+            .ok_or_else(|| HarnessInfraError::StoryNotFound(id.to_owned()))
+    }
+
+    fn query_gcr(&self) -> Result<Vec<GcrRecord>> {
+        let connection = self.open_existing()?;
+        // The CTE-based GCR formula follows docs/p3-ac6-compliance-metric.md §2.4 exactly.
+        let sql = "
+WITH lane_map AS (
+  SELECT
+    s.id                AS story_id,
+    COALESCE(s.risk_lane, i.risk_lane, 'normal') AS lane,
+    i.id                AS intake_id
+  FROM story s
+  LEFT JOIN intake i ON i.story_id = s.id
+),
+has_push AS (
+  SELECT DISTINCT story_id
+  FROM trace
+  WHERE story_id IS NOT NULL
+    AND files_changed IS NOT NULL
+    AND files_changed NOT IN ('', '[]', 'null')
+),
+gate_signals AS (
+  SELECT
+    lm.story_id,
+    lm.lane,
+    CASE WHEN lm.intake_id IS NOT NULL THEN 1 ELSE 0 END AS g_t0,
+    CASE WHEN lm.intake_id IS NOT NULL THEN 1 ELSE 0 END AS g_t1,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM trace t
+      WHERE t.story_id = lm.story_id
+        AND (t.files_read LIKE '%ws-memories%' OR t.files_read LIKE '%nano-brain%')
+    ) THEN 1 ELSE 0 END AS g_m1,
+    1 AS g_t2,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM story s2
+      WHERE s2.id = lm.story_id
+        AND (s2.unit_proof = 1 OR s2.integration_proof = 1
+             OR s2.e2e_proof = 1 OR s2.evidence IS NOT NULL
+             OR s2.last_verified_result = 'pass')
+    ) THEN 1 ELSE 0 END AS g_t3,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM gate_log gl
+      WHERE gl.story_id = lm.story_id
+        AND gl.gate = 'review' AND gl.decision = 'pass'
+    ) OR EXISTS (
+      SELECT 1 FROM intervention iv
+      WHERE iv.story_id = lm.story_id
+        AND iv.type = 'approval' AND iv.source = 'reviewer'
+    ) THEN 1 ELSE 0 END AS g_review,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM gate_log gl
+      WHERE gl.story_id = lm.story_id
+        AND gl.gate = 'P1' AND gl.decision = 'approved'
+    ) THEN 1 ELSE 0 END AS g_p1,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM story s3
+      WHERE s3.id = lm.story_id
+        AND s3.t4_verdict IN ('pass','ambiguous')
+    ) THEN 1 ELSE 0 END AS g_t4,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM trace t2
+      WHERE t2.story_id = lm.story_id
+        AND t2.outcome = 'completed'
+        AND CASE lm.lane
+              WHEN 'tiny'      THEN (t2.task_summary IS NOT NULL AND length(trim(t2.task_summary)) >= 10)
+              WHEN 'normal'    THEN (t2.agent IS NOT NULL AND t2.actions_taken IS NOT NULL AND t2.files_read IS NOT NULL)
+              WHEN 'high_risk' THEN (t2.decisions_made IS NOT NULL AND t2.errors IS NOT NULL AND t2.harness_friction IS NOT NULL)
+              ELSE 0
+            END = 1
+    ) THEN 1 ELSE 0 END AS g_m2,
+    CASE WHEN lm.story_id IN (SELECT story_id FROM has_push) THEN 1 ELSE 0 END AS push_happened
+  FROM lane_map lm
+),
+gcr AS (
+  SELECT
+    gs.story_id,
+    gs.lane,
+    (gs.g_t0 + gs.g_t1
+      + CASE WHEN gs.lane IN ('normal','high_risk') THEN gs.g_m1 ELSE 0 END
+      + CASE WHEN gs.lane IN ('normal','high_risk') THEN gs.g_t2 ELSE 0 END
+      + CASE WHEN gs.lane IN ('normal','high_risk') THEN gs.g_t3 ELSE 0 END
+      + CASE WHEN gs.lane IN ('normal','high_risk') THEN gs.g_review ELSE 0 END
+      + CASE WHEN gs.push_happened = 1             THEN gs.g_p1    ELSE 0 END
+      + CASE WHEN gs.lane IN ('normal','high_risk') THEN gs.g_t4    ELSE 0 END
+      + gs.g_m2
+    ) AS gates_recorded,
+    (2
+      + CASE WHEN gs.lane IN ('normal','high_risk') THEN 5 ELSE 0 END
+      + CASE WHEN gs.push_happened = 1             THEN 1 ELSE 0 END
+      + 1
+    ) AS gates_expected
+  FROM gate_signals gs
+)
+SELECT
+  story_id,
+  lane,
+  gates_recorded,
+  gates_expected,
+  ROUND(CAST(gates_recorded AS REAL) / gates_expected, 3) AS gcr,
+  CASE
+    WHEN CAST(gates_recorded AS REAL) / gates_expected >= 0.85 THEN 'green'
+    WHEN CAST(gates_recorded AS REAL) / gates_expected >= 0.50 THEN 'yellow'
+    ELSE 'red'
+  END AS rag
+FROM gcr
+ORDER BY gcr ASC;";
+
+        let mut statement = connection.prepare(sql)?;
+        let rows = statement.query_map([], |row| {
+            Ok(GcrRecord {
+                story_id: row.get(0)?,
+                lane: row.get(1)?,
+                gates_recorded: row.get(2)?,
+                gates_expected: row.get(3)?,
+                gcr: row.get(4)?,
+                rag: row.get(5)?,
+            })
+        })?;
+
+        collect_rows(rows)
     }
 }
 

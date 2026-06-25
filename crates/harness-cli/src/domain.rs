@@ -1177,6 +1177,53 @@ pub fn normalize_token(value: &str) -> String {
     normalized
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct GateLogRecord {
+    pub id: i64,
+    pub created_at: String,
+    pub gate: String,
+    pub story_id: Option<String>,
+    pub action: String,
+    pub decision: Option<String>,
+    pub detail: Option<String>,
+    pub source: String,
+}
+
+/// Per-story gate-compliance rate record, produced by `query gcr`.
+///
+/// `gates_recorded / gates_expected` — see `docs/p3-ac6-compliance-metric.md`.
+#[derive(Debug)]
+pub struct GcrRecord {
+    pub story_id: String,
+    pub lane: String,
+    pub gates_recorded: i64,
+    pub gates_expected: i64,
+    /// `gates_recorded / gates_expected` rounded to 3 decimal places.
+    pub gcr: f64,
+    /// Traffic-light bracket: "green" (≥0.85), "yellow" (≥0.50), "red" (<0.50).
+    pub rag: String,
+}
+
+/// Full story projection used by `export matrix` and `export story`.
+/// Extends the proof columns from [`StoryMatrixRecord`] with the lane,
+/// last verify result, T4 verdict, and T4 notes — all needed for
+/// Markdown rendering without a second query.
+#[derive(Debug, PartialEq, Eq)]
+pub struct StoryExportRecord {
+    pub id: String,
+    pub title: String,
+    pub lane: String,
+    pub status: String,
+    pub unit: i64,
+    pub integration: i64,
+    pub e2e: i64,
+    pub platform: i64,
+    pub last_verified_result: Option<String>,
+    pub t4_verdict: Option<String>,
+    pub t4_notes: Option<String>,
+    pub evidence: Option<String>,
+}
+
 pub fn yes_no(value: i64) -> String {
     if value == 1 {
         "yes".to_owned()

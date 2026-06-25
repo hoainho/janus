@@ -6,16 +6,18 @@ use clap::{Args, Parser, Subcommand};
 use thiserror::Error;
 
 use crate::application::{
-    BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, DecisionAddInput, HarnessContext,
-    HarnessService, InitResult, IntakeInput, InterventionAddInput, InterventionFilter,
-    MigrateResult, QueryTable, StoryAddInput, StoryUpdateInput, ToolRegisterInput, TraceInput,
+    BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, DecisionAddInput, GateLogInput,
+    HarnessContext, HarnessService, InitResult, IntakeInput, InterventionAddInput,
+    InterventionFilter, MigrateResult, QueryTable, SetT4VerdictInput, StoryAddInput,
+    StoryUpdateInput, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
     normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
     validate_responsibility, validate_tool_kind, BacklogFilter, BacklogRecord, BoolFlag,
-    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, HarnessStats, ImprovementProposal,
-    InputType, IntakeRecord, InterventionRecord, RiskLane, StoryMatrixRecord, StoryVerifyAllResult,
-    ToolEntry, TraceQualityTier, TraceRecord, TraceScoreResult, RISK_LANE_HELP,
+    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, GcrRecord, GateLogRecord,
+    HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord, RiskLane,
+    StoryExportRecord, StoryMatrixRecord, StoryVerifyAllResult, ToolEntry, TraceQualityTier,
+    TraceRecord, TraceScoreResult, RISK_LANE_HELP,
 };
 use crate::infrastructure::ToolCheckResult;
 
@@ -58,8 +60,12 @@ enum Command {
     Audit,
     /// Generate improvement proposals from observed patterns.
     Propose(ProposeArgs),
+    /// Record or query gate passage events.
+    GateLog(GateLogArgs),
     /// Query harness data.
     Query(QueryArgs),
+    /// Export harness data as Markdown.
+    Export(ExportArgs),
 }
 
 #[derive(Args, Debug)]
@@ -79,6 +85,9 @@ struct IntakeArgs {
     story: Option<String>,
     #[arg(long)]
     notes: Option<String>,
+    /// JSON object mapping the 10 risk-flag keys to rationale strings.
+    #[arg(long)]
+    lane_checklist: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -116,6 +125,8 @@ enum StoryAction {
     },
     /// Verify every story, skipping stories without verify_command.
     VerifyAll,
+    /// Record the T4 reconciliation verdict.
+    T4(StoryT4Args),
 }
 
 #[derive(Args, Debug)]
@@ -152,6 +163,53 @@ struct StoryUpdateArgs {
     platform: Option<String>,
     #[arg(long)]
     verify: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct StoryT4Args {
+    /// Story id to set T4 verdict on.
+    #[arg(long)]
+    id: String,
+    /// Reconciliation verdict.
+    #[arg(long, value_name = "pass|ambiguous|fail")]
+    verdict: String,
+    /// Free-text notes explaining the verdict (required for ambiguous).
+    #[arg(long)]
+    notes: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct GateLogArgs {
+    #[command(subcommand)]
+    action: GateLogAction,
+}
+
+#[derive(Subcommand, Debug)]
+enum GateLogAction {
+    /// Insert a gate passage event into gate_log.
+    Record(GateLogRecordArgs),
+}
+
+#[derive(Args, Debug)]
+struct GateLogRecordArgs {
+    /// Gate being recorded (T0, M1, P1, P2, review).
+    #[arg(long, value_name = "T0|M1|P1|P2|review")]
+    gate: String,
+    /// Action taken at this gate.
+    #[arg(long)]
+    action: String,
+    /// Story the gate passage applies to.
+    #[arg(long)]
+    story: Option<String>,
+    /// Decision outcome recorded at this gate.
+    #[arg(long)]
+    decision: Option<String>,
+    /// Additional detail about the gate passage.
+    #[arg(long)]
+    detail: Option<String>,
+    /// Source of the gate decision.
+    #[arg(long, default_value = "agent", value_name = "human|reviewer|ci|agent")]
+    source: String,
 }
 
 #[derive(Args, Debug)]
@@ -391,6 +449,10 @@ enum QueryView {
     Interventions(InterventionsQueryArgs),
     /// Summary counts.
     Stats,
+    /// Gate passage log.
+    GateLog,
+    /// Per-story gate-compliance rate (GCR) from docs/p3-ac6-compliance-metric.md.
+    Gcr,
     /// Run arbitrary SQL.
     Sql { query: Vec<String> },
 }
@@ -419,6 +481,27 @@ struct InterventionsQueryArgs {
     story: Option<String>,
     #[arg(long = "type")]
     intervention_type: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct ExportArgs {
+    #[command(subcommand)]
+    view: ExportView,
+}
+
+#[derive(Subcommand, Debug)]
+enum ExportView {
+    /// GitHub-flavored Markdown table of all stories.
+    Matrix,
+    /// Markdown status block for one story.
+    Story(ExportStoryArgs),
+}
+
+#[derive(Args, Debug)]
+struct ExportStoryArgs {
+    /// Story id to export.
+    #[arg(long)]
+    id: String,
 }
 
 #[derive(Debug, Error)]
@@ -455,6 +538,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 affected_docs: CsvList::from_optional(args.docs),
                 story_id: args.story,
                 notes: args.notes,
+                lane_checklist: args.lane_checklist,
             })?;
             println!("Intake #{id} recorded.");
         }
@@ -495,6 +579,14 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 if result.result == "fail" {
                     std::process::exit(1);
                 }
+            }
+            StoryAction::T4(args) => {
+                service.set_t4_verdict(SetT4VerdictInput {
+                    id: args.id.clone(),
+                    verdict: args.verdict,
+                    notes: args.notes,
+                })?;
+                println!("Story {} T4 verdict recorded.", args.id);
             }
             StoryAction::VerifyAll => {
                 let result = service.verify_all_stories()?;
@@ -640,6 +732,19 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 .expect("value provided");
             print_context_score(&service.score_context(id)?);
         }
+        Command::GateLog(gate_log_args) => match gate_log_args.action {
+            GateLogAction::Record(args) => {
+                let id = service.record_gate_log(GateLogInput {
+                    gate: args.gate,
+                    action: args.action,
+                    story_id: args.story,
+                    decision: args.decision,
+                    detail: args.detail,
+                    source: args.source,
+                })?;
+                println!("Gate log #{id} recorded.");
+            }
+        },
         Command::Audit => print_audit(&service.audit()?),
         Command::Propose(args) => print_proposals(&service.propose(args.commit)?),
         Command::Query(args) => match args.view {
@@ -681,11 +786,19 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 })?);
             }
             QueryView::Stats => print_stats(&service.query_stats()?),
+            QueryView::GateLog => print_gate_log(&service.query_gate_log()?),
+            QueryView::Gcr => print_gcr(&service.query_gcr()?),
             QueryView::Sql { query } => {
                 if query.is_empty() {
                     return Err(InterfaceError::EmptySql);
                 }
                 print_query_table(&service.query_sql(&query.join(" "))?);
+            }
+        },
+        Command::Export(args) => match args.view {
+            ExportView::Matrix => print_export_matrix_md(&service.query_export_matrix()?),
+            ExportView::Story(args) => {
+                print_export_story_md(&service.query_export_story(&args.id)?)
             }
         },
     }
@@ -1294,9 +1407,141 @@ fn print_stats(stats: &HarnessStats) {
     );
 }
 
+fn print_gate_log(records: &[GateLogRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.id.to_string(),
+                record.created_at.clone(),
+                record.gate.clone(),
+                record.story_id.clone().unwrap_or_default(),
+                record.action.clone(),
+                record.decision.clone().unwrap_or_default(),
+                record.source.clone(),
+                record.detail.clone().unwrap_or_default(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        &[
+            "id",
+            "created_at",
+            "gate",
+            "story",
+            "action",
+            "decision",
+            "source",
+            "detail",
+        ],
+        &rows,
+    );
+}
+
+fn print_gcr(records: &[GcrRecord]) {
+    if records.is_empty() {
+        println!("No stories found.");
+        return;
+    }
+
+    let rows = records
+        .iter()
+        .map(|record| {
+            vec![
+                record.story_id.clone(),
+                record.lane.clone(),
+                record.gates_recorded.to_string(),
+                record.gates_expected.to_string(),
+                format!("{:.1}%", record.gcr * 100.0),
+                record.rag.clone(),
+            ]
+        })
+        .collect::<Vec<_>>();
+
+    print_table(
+        &["story_id", "lane", "recorded", "expected", "GCR%", "rag"],
+        &rows,
+    );
+
+    // Overall average row.
+    let total_recorded: i64 = records.iter().map(|record| record.gates_recorded).sum();
+    let total_expected: i64 = records.iter().map(|record| record.gates_expected).sum();
+    if total_expected > 0 {
+        let avg = total_recorded as f64 / total_expected as f64;
+        let avg_rag = if avg >= 0.85 {
+            "green"
+        } else if avg >= 0.50 {
+            "yellow"
+        } else {
+            "red"
+        };
+        println!();
+        println!(
+            "Overall: {}/{} gates recorded — avg GCR {:.1}% ({})",
+            total_recorded,
+            total_expected,
+            avg * 100.0,
+            avg_rag
+        );
+    }
+}
+
 fn print_query_table(table: &QueryTable) {
     let headers = table.headers.iter().map(String::as_str).collect::<Vec<_>>();
     print_table(&headers, &table.rows);
+}
+
+fn md_proof(value: i64) -> &'static str {
+    if value == 1 { "yes" } else { "no" }
+}
+
+fn md_opt(value: &Option<String>) -> &str {
+    value.as_deref().unwrap_or("")
+}
+
+fn print_export_matrix_md(records: &[StoryExportRecord]) {
+    println!("| ID | Lane | Status | unit | integration | e2e | platform | verify | t4_verdict | evidence |");
+    println!("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+    for record in records {
+        println!(
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
+            record.id,
+            record.lane,
+            record.status,
+            md_proof(record.unit),
+            md_proof(record.integration),
+            md_proof(record.e2e),
+            md_proof(record.platform),
+            md_opt(&record.last_verified_result),
+            md_opt(&record.t4_verdict),
+            md_opt(&record.evidence),
+        );
+    }
+}
+
+fn print_export_story_md(record: &StoryExportRecord) {
+    println!("## {} — {}", record.id, record.title);
+    println!();
+    println!("- **lane**: {}", record.lane);
+    println!("- **status**: {}", record.status);
+    println!(
+        "- **proof**: unit={} integration={} e2e={} platform={}",
+        md_proof(record.unit),
+        md_proof(record.integration),
+        md_proof(record.e2e),
+        md_proof(record.platform),
+    );
+    println!(
+        "- **verify result**: {}",
+        md_opt(&record.last_verified_result)
+    );
+    println!("- **t4_verdict**: {}", md_opt(&record.t4_verdict));
+    if let Some(notes) = record.t4_notes.as_deref().filter(|value| !value.is_empty()) {
+        println!("- **t4_notes**: {notes}");
+    }
+    if let Some(evidence) = record.evidence.as_deref().filter(|value| !value.is_empty()) {
+        println!("- **evidence**: {evidence}");
+    }
 }
 
 fn print_table(headers: &[&str], rows: &[Vec<String>]) {

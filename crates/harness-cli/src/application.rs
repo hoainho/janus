@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::domain::{
     AuditResult, BacklogFilter, BacklogRecord, BoolFlag, ContextScoreResult, CsvList,
-    DecisionRecord, FrictionRecord, HarnessStats, ImprovementProposal, InputType, IntakeRecord,
-    InterventionRecord, RiskLane, StoryMatrixRecord, StoryVerifyAllResult, StoryVerifyStatus,
-    ToolArgSpec, ToolEntry, TraceRecord, TraceScoreResult,
+    DecisionRecord, FrictionRecord, GcrRecord, GateLogRecord, HarnessStats, ImprovementProposal,
+    InputType, IntakeRecord, InterventionRecord, RiskLane, StoryExportRecord, StoryMatrixRecord,
+    StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec, ToolEntry, TraceRecord, TraceScoreResult,
 };
 use crate::infrastructure::{HarnessRepository, SqliteHarnessRepository, ToolCheckResult};
 
@@ -23,6 +23,24 @@ pub struct IntakeInput {
     pub risk_flags: CsvList,
     pub affected_docs: CsvList,
     pub story_id: Option<String>,
+    pub notes: Option<String>,
+    pub lane_checklist: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct GateLogInput {
+    pub gate: String,
+    pub action: String,
+    pub story_id: Option<String>,
+    pub decision: Option<String>,
+    pub detail: Option<String>,
+    pub source: String,
+}
+
+#[derive(Debug)]
+pub struct SetT4VerdictInput {
+    pub id: String,
+    pub verdict: String,
     pub notes: Option<String>,
 }
 
@@ -285,6 +303,35 @@ impl HarnessService {
 
     pub fn query_sql(&self, sql: &str) -> crate::infrastructure::Result<QueryTable> {
         self.repository.query_sql(sql)
+    }
+
+    pub fn record_gate_log(&self, input: GateLogInput) -> crate::infrastructure::Result<i64> {
+        self.repository.record_gate_log(input)
+    }
+
+    pub fn query_gate_log(&self) -> crate::infrastructure::Result<Vec<GateLogRecord>> {
+        self.repository.query_gate_log()
+    }
+
+    pub fn set_t4_verdict(&self, input: SetT4VerdictInput) -> crate::infrastructure::Result<()> {
+        self.repository.set_t4_verdict(input)
+    }
+
+    pub fn query_export_matrix(
+        &self,
+    ) -> crate::infrastructure::Result<Vec<StoryExportRecord>> {
+        self.repository.query_export_matrix()
+    }
+
+    pub fn query_export_story(
+        &self,
+        id: &str,
+    ) -> crate::infrastructure::Result<StoryExportRecord> {
+        self.repository.query_export_story(id)
+    }
+
+    pub fn query_gcr(&self) -> crate::infrastructure::Result<Vec<GcrRecord>> {
+        self.repository.query_gcr()
     }
 }
 
