@@ -10,3 +10,7 @@ dist/
 # Downloaded Harness CLI binary for installed project instances.
 scripts/bin/harness-cli
 scripts/bin/harness-cli.exe
+
+# eval generated artifacts
+scripts/__pycache__/
+scripts/recall_health.json

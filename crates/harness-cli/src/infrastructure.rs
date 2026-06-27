@@ -1549,12 +1549,18 @@ gate_signals AS (
   SELECT
     lm.story_id,
     lm.lane,
-    CASE WHEN lm.intake_id IS NOT NULL THEN 1 ELSE 0 END AS g_t0,
+    CASE WHEN lm.intake_id IS NOT NULL OR EXISTS (
+      SELECT 1 FROM gate_log gl
+      WHERE gl.story_id = lm.story_id AND gl.gate = 'T0'
+    ) THEN 1 ELSE 0 END AS g_t0,
     CASE WHEN lm.intake_id IS NOT NULL THEN 1 ELSE 0 END AS g_t1,
     CASE WHEN EXISTS (
       SELECT 1 FROM trace t
       WHERE t.story_id = lm.story_id
         AND (t.files_read LIKE '%ws-memories%' OR t.files_read LIKE '%nano-brain%')
+    ) OR EXISTS (
+      SELECT 1 FROM gate_log gl
+      WHERE gl.story_id = lm.story_id AND gl.gate = 'M1'
     ) THEN 1 ELSE 0 END AS g_m1,
     1 AS g_t2,
     CASE WHEN EXISTS (
@@ -1576,7 +1582,7 @@ gate_signals AS (
     CASE WHEN EXISTS (
       SELECT 1 FROM gate_log gl
       WHERE gl.story_id = lm.story_id
-        AND gl.gate = 'P1' AND gl.decision = 'approved'
+        AND gl.gate = 'P1' AND gl.decision IN ('approved','yes')
     ) THEN 1 ELSE 0 END AS g_p1,
     CASE WHEN EXISTS (
       SELECT 1 FROM story s3
