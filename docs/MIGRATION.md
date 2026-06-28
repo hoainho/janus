@@ -18,7 +18,7 @@
 ## A. Install the binary on a new machine
 Pick ONE (do NOT install rust just to *run*):
 1. **Download prebuilt release** (recommended): grab the macOS-arm64 (or matching) artifact from the CI release (`.github/workflows/harness-cli-release.yml`) / your dotfiles, drop on `PATH`. Zero build.
-2. **Build once natively** (where you have rust): `cargo build --release` (~40s) → copy the binary out. Apply `busy_timeout.patch` first (or use an upstreamed release).
+2. **Build once natively** (where you have rust): `cargo build --release` (~40s) → copy the binary out. Apply `busy_timeout.patch` first (or use an official release).
 > Run-mode decision: prefer a **native binary on PATH** (zero-daemon, instant). Avoid a Docker-wrapper for daily use — it re-introduces a daemon dependency + per-call latency + SQLite-over-bind-mount lock fragility.
 
 ## B. Full-fidelity migration (carry ALL state, incl. traces)

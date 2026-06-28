@@ -1,6 +1,6 @@
 # Phase 5 — Evolution Infrastructure: Finalized Scope
 
-**Target repo:** `repository-harness` (feature branch off `main`)
+**Target repo:** `janus` (feature branch off `main`)
 **Validation:** `harness-benchmark` re-run after implementation
 **Current harness maturity:** H4 partial (Phase 4 story verification + pre-close gate complete)
 **Target maturity:** H4 (full) → H5 (partial: self-improvement loop, drift detection, batch verification)

@@ -1,272 +1,235 @@
-# repository-harness
+# Janus
 
-Turn any software repo into an agent-ready workspace.
+**Agent-ready engineering harness for AI-assisted development.**
 
-`repository-harness` is a repository-level operating harness for Claude Code,
-Codex, Cursor, and other coding agents. It gives agents the missing project
-context they need before they change code: where to start, what the product
-contract says, how risky the work is, what proof is required, and which
-decisions future agents should inherit.
+Janus turns any software repository into a structured workspace where coding agents (Claude Code, Codex, Cursor, Copilot, and others) can classify risk, validate work, and preserve institutional knowledge — without relying on chat history.
 
-The app is what users touch. The harness is what agents touch.
+> The app is what users touch. The harness is what agents touch.
 
-## Why Star This Repo
+**Author:** [Hoài Nhớ](https://github.com/hoainho)
 
-Star this repo if you want practical, reusable patterns for making AI-assisted
-software development more reliable, inspectable, and easier for humans to steer.
+---
 
-This project is exploring a simple idea:
+## Why Janus
 
-> Coding agents do not only need better prompts. They need better repositories.
+Most repos are built for humans reading familiar code. Coding agents enter with only a chat prompt and a shallow file snapshot. That leads to:
 
-## The Problem
+- Agents editing code before understanding product intent
+- Constraints living only in chat history
+- Vague validation expectations discovered too late
+- Architecture tradeoffs repeated instead of inherited
+- Large requests not broken into reviewable story-sized work
 
-Most repos are built for humans reading code in a familiar codebase. Coding
-agents usually enter with only a chat prompt and a shallow snapshot of files.
-That leads to common failure modes:
-
-- The agent edits code before understanding product intent.
-- Important constraints live only in chat history or in someone's head.
-- Validation expectations are vague or discovered too late.
-- Architecture tradeoffs are repeated instead of inherited.
-- Large requests do not get broken into reviewable story-sized work.
-
-## The Harness Approach
-
-A repository starts to have a harness when it helps an agent answer practical
-engineering questions without relying only on chat history:
+Janus solves this by giving every repo a **structured operating layer** that answers:
 
 - What should I read first?
-- What type of work is this?
-- Which product contract does it affect?
-- How risky is the change?
-- What proof will show the work is done?
-- What decision or lesson should future agents inherit?
+- How risky is this change?
+- What proof shows the work is done?
+- What decisions should future agents inherit?
 
-In this repo, those answers live in:
+## Features
 
-- `AGENTS.md` — the stable agent shim with local project notes and Harness
-  doc links.
-- `docs/HARNESS.md` — the human-agent collaboration model.
-- `docs/FEATURE_INTAKE.md` — tiny, normal, and high-risk work classification.
-- `docs/ARCHITECTURE.md` — architecture discovery and boundary rules.
-- `docs/TEST_MATRIX.md` — behavior-to-proof validation expectations.
-- `docs/stories/` — story packets and backlog items.
-- `docs/decisions/` — durable decisions and tradeoffs.
-- `docs/templates/` — reusable spec, story, decision, and validation templates.
+| Capability | Description |
+|---|---|
+| **Risk Classification** | Automatic tiny / normal / high-risk lane assignment via 10-flag checklist |
+| **Proposal Layer** | OpenSpec integration for structured proposal → design → specs flow |
+| **Deep-Design Review** | Parallel multi-agent gap analysis before specs are locked |
+| **Validation Ladder** | Lane-appropriate test requirements (quick → integration → E2E) |
+| **Review Gate** | Independent reviewer verification with evidence per criterion |
+| **PR Bot Loop** | Automated PR review with max 3 push cycles |
+| **Durable State** | SQLite-backed operational records via Rust CLI (`harness-cli`) |
+| **Trace System** | 3-tier quality scoring (Minimal / Standard / Detailed) |
+| **Tool Registry** | Capability-based external tool integration with degrade ladder |
+| **Maturity Model** | H0 → H5 verifiable maturity ladder |
+| **Self-Improvement** | Friction → audit → propose → outcome feedback loop |
+| **Cross-Platform** | macOS (arm64/x64), Linux (x64/arm64), Windows (x64) |
 
-OpenAI describes this shift as an agent-first world where humans steer and
-agents execute:
+## Quick Start
 
-https://openai.com/index/harness-engineering/
-
-## Install Harness Into A Project
-
-From a target project directory, run:
+### One-line install (macOS / Linux)
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 ```
 
-On Windows PowerShell, run:
+### One-line install (Windows PowerShell)
 
 ```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Yes
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.ps1"))) -Yes
 ```
 
-If the target already has `AGENTS.md`, `docs/`, or `scripts/`, choose one:
+### Install options
 
 ```bash
-# Update an existing Harness repo without moving existing files
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
+# Fresh install into current directory
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 
-# Back up and replace AGENTS.md, docs/, and scripts/
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --override --yes
+# Merge into existing harness (keeps your files, adds missing ones)
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
+
+# Override existing files (backs up first)
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --override --yes
+
+# Install into a specific directory
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --directory /path/to/project --yes
+
+# For Claude Code projects (installs CLAUDE.md shim)
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --claude --yes
+
+# Preview changes before applying
+curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --dry-run
 ```
 
-```powershell
-# Update an existing Harness repo without moving existing files
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Merge -Yes
+### What gets installed
 
-# Back up and replace AGENTS.md, docs/, and scripts/
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Override -Yes
+```
+project/
+├── AGENTS.md                  # Agent entry point
+├── CLAUDE.md                  # Claude Code shim (with --claude flag)
+├── docs/
+│   ├── HARNESS.md             # Operating model
+│   ├── FEATURE_INTAKE.md      # Risk classification
+│   ├── ARCHITECTURE.md        # Boundary rules
+│   ├── CONTEXT_RULES.md       # Phase-by-lane context
+│   ├── TOOL_REGISTRY.md       # External tool integration
+│   ├── TRACE_SPEC.md          # Trace quality tiers
+│   ├── TEST_MATRIX.md         # Behavior-to-proof mapping
+│   ├── HARNESS_BACKLOG.md     # Friction backlog
+│   ├── product/               # Product contracts
+│   ├── stories/               # Story packets
+│   ├── decisions/             # Decision records
+│   └── templates/             # Reusable templates
+└── scripts/
+    ├── bin/harness-cli        # Prebuilt Rust CLI
+    └── schema/                # SQLite migrations
 ```
 
-Use `--merge` when a project already has Harness and you want to append newly
-added Harness files without moving the existing `AGENTS.md`, `docs/`, or
-`scripts/` paths into backup. Existing files stay untouched; only missing
-Harness files are created.
+The installer auto-detects your platform and downloads the matching prebuilt binary:
 
-For older Harness installs whose `AGENTS.md` still contains the full generated
-operating guide, refresh it into the small stable shim:
+| Platform | Asset |
+|---|---|
+| macOS arm64 | `harness-cli-macos-arm64` |
+| macOS x64 | `harness-cli-macos-x64` |
+| Linux x64 | `harness-cli-linux-x64` |
+| Linux arm64 | `harness-cli-linux-arm64` |
+| Windows x64 | `harness-cli-windows-x64.exe` |
 
-```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --refresh-agent-shim --yes
+Each binary is verified via `.sha256` checksum before use.
+
+## The Workflow
+
 ```
-
-The refresh backs up the existing file. If it detects the old
-Harness-generated guide, it replaces it with the shim. If the file appears
-custom, it appends or updates a marked Harness block instead of overwriting the
-project's local instructions.
-
-If the project is driven with Claude Code, add `--claude`. Claude Code never
-auto-loads `AGENTS.md`, so without this the installed harness is invisible to
-fresh sessions. The flag installs (or refreshes) a `CLAUDE.md` whose marked
-Harness block `@`-imports `AGENTS.md` and `docs/FEATURE_INTAKE.md` into every
-session's context. An existing `CLAUDE.md` gets the block appended after a
-backup; plain installs without the flag never touch `CLAUDE.md`:
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --claude --yes
-```
-
-Or install into a specific path:
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --directory /path/to/project --yes
-```
-
-```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Directory C:\path\to\project -Yes
-```
-
-Use `--dry-run` on Bash or `-DryRun` on PowerShell to preview changes before
-writing files.
-
-The installer also downloads the prebuilt Harness CLI for the current platform,
-verifies its `.sha256` checksum, and installs it at
-`scripts/bin/harness-cli` on macOS/Linux or `scripts/bin/harness-cli.exe` on
-Windows. The Rust CLI is the main Harness tool and stable command path.
-
-Harness CLI release assets are published from tags by the
-`Harness CLI Release` GitHub Actions workflow. The installer expects each
-release to include `harness-cli-<platform>` and
-`harness-cli-<platform>.sha256` assets for macOS arm64, macOS x64, Linux x64,
-Linux arm64, and Windows x64. The Windows asset is
-`harness-cli-windows-x64.exe` plus `harness-cli-windows-x64.exe.sha256`.
-
-Merged pull requests are recorded in `CHANGELOG.md` by the
-`Post-Merge Maintenance` workflow. When a merged PR changes the Rust CLI source,
-schema, Cargo metadata, or CLI release packaging, that workflow bumps the CLI
-patch version, updates `scripts/harness-cli-release-tag`, creates a
-`harness-cli-v*` tag, and runs the Harness CLI release build for that tag.
-
-## Try The Flow
-
-The fastest way to understand the harness is to inspect the tiny demo:
-
-- `docs/demo/README.md`: shows how a simple product idea becomes product docs,
-  stories, validation expectations, and decisions before implementation starts.
-
-A typical flow looks like this:
-
-```text
 human intent or product spec
-  -> product contract
-  -> feature intake
-  -> story packet
-  -> validation expectations
-  -> implementation work
-  -> decision or lesson captured for future agents
+  → feature intake (classify risk)
+  → proposal (openspec new change)
+  → deep-design gap analysis
+  → specs + story packet
+  → implementation
+  → validation ladder
+  → user-flow test
+  → review gate (independent reviewer)
+  → PR + bot review loop
+  → archive + capture lessons
 ```
 
-Implementation prompts do not go straight to code. They first pass through
-feature intake, become story-sized work when needed, and then carry both product
-validation and harness maintenance expectations.
+Implementation prompts do not go straight to code. They pass through feature intake, become story-sized work when needed, and carry both product validation and harness maintenance expectations.
+
+## Harness CLI
+
+The Rust CLI (`harness-cli`) is the durable layer. It records operational state in a local SQLite database (`harness.db`):
+
+```bash
+# Initialize database
+harness-cli init
+
+# Record intake classification
+harness-cli intake --type "change-request" --summary "Add OAuth login" --lane normal
+
+# Create story
+harness-cli story add --id US-014 --title "OAuth login flow" --lane normal
+
+# Run story verification
+harness-cli story verify US-014
+
+# Record execution trace
+harness-cli trace --summary "Implemented OAuth login" --outcome completed
+
+# Query proof matrix
+harness-cli query matrix
+
+# Record friction
+harness-cli backlog add --title "Missing webhook template" --pain "Had to infer webhook format"
+
+# Generate improvement proposals
+harness-cli propose
+
+# Run drift audit
+harness-cli audit
+```
 
 ## Tool Registry
 
-The harness can use optional external tools (linters, code-graph servers,
-deploy checks) without depending on any of them. You register a tool as a
-provider of a *capability*, the harness scans whether it is actually present,
-and a workflow step uses whatever is equipped — an absent tool is a clean skip,
-never a failure.
+Register external tools as capability providers. The harness adapts to what is equipped — absent tools are clean skips, never failures.
 
 ```bash
-# register a tool as a provider of a capability
-scripts/bin/harness-cli tool register --name deploy-check --kind cli \
+# Register a tool
+harness-cli tool register --name deploy-check --kind cli \
   --capability deploy-verification --command ./scripts/deploy-check.sh \
-  --responsibility Verification --description "Verify deploy health before release"
+  --responsibility Verification --description "Verify deploy health"
 
-# scan presence (writes present/missing/unknown)
-scripts/bin/harness-cli tool check
+# Scan presence
+harness-cli tool check
 
-# a step looks up what is equipped for a purpose
-scripts/bin/harness-cli query tools --capability deploy-verification --status present
+# Look up by capability
+harness-cli query tools --capability deploy-verification --status present
 ```
 
-Kinds (`cli`, `binary`, `mcp`, `skill`, `http`) make it agent-generic: each
-agent runtime uses what it can orchestrate. See `docs/TOOL_REGISTRY.md` for the
-full model, the degrade ladder, and how to wire a tool into a flow step.
+Supported tool kinds: `cli`, `binary`, `mcp`, `skill`, `http`.
 
-## Current State
+## Maturity Levels
 
-This repository is in Harness v0.
-
-There is no application implementation and no baked-in product specification
-yet. The current work is the reusable project harness: the file structure,
-agent operating model, feature intake process, story templates, and validation
-expectations that help humans and agents turn a future user-provided spec into
-implementation work.
-
-## Product Sources
-
-No product contract is currently defined.
-
-When a user provides a project specification, add or reference it as the input
-spec for the first buildout, then derive smaller living artifacts from it:
-
-- `docs/product/`: current product contract files, created from the spec.
-- `docs/stories/`: story packets and backlog created from selected work.
-- `docs/TEST_MATRIX.md`: behavior-to-proof control panel.
-- `docs/decisions/`: durable decisions and tradeoffs.
-
-Do not keep a project-specific spec or product breakdown in this harness until
-a real project supplies one.
+| Level | Name | Description |
+|---|---|---|
+| H0 | Bare Environment | No harness present |
+| H1 | Scaffolding & Policy | Static instructions, templates, risk lanes |
+| H2 | Durable State | SQLite records, trace spec, context rules |
+| H3 | Active Observability | Trace scoring, friction classification, backlog loop |
+| H4 | Automated Verification | Story verify commands, trace-time warnings |
+| H5 | Self-Improving | Audit, propose, outcome comparison |
 
 ## Repository Structure
 
-```text
-project/
-  AGENTS.md
-  README.md
-  docs/
-    HARNESS.md
-    FEATURE_INTAKE.md
-    ARCHITECTURE.md
-    TEST_MATRIX.md
-    HARNESS_BACKLOG.md
-    product/
-    stories/
-    decisions/
-    demo/
-    templates/
-  scripts/
-    README.md
+```
+janus/
+├── crates/harness-cli/        # Rust CLI source
+│   └── src/
+│       ├── main.rs
+│       ├── application.rs
+│       ├── domain.rs
+│       ├── infrastructure.rs
+│       └── interface.rs
+├── docs/                      # Harness documentation
+├── scripts/
+│   ├── install-harness.sh     # Bash installer
+│   ├── install-harness.ps1    # PowerShell installer
+│   └── schema/                # SQLite migrations
+├── .github/workflows/         # CI/CD
+├── Cargo.toml                 # Rust workspace
+├── AGENTS.md                  # Agent entry point
+└── README.md
 ```
 
 ## Contributing
 
-This project is early and benefits most from real-world agent failure cases,
-example harness installs, docs improvements, and reusable workflow patterns.
-See `CONTRIBUTING.md` for contribution ideas.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-Useful contributions include:
+Useful areas:
+- Real-world harness install examples
+- Validation patterns for different stacks
+- Templates and workflow improvements
+- Cross-platform installer improvements
+- Agent failure case studies
 
-- Show how the harness works in a real project.
-- Add missing templates or improve existing ones.
-- Propose validation patterns for different stacks.
-- Share failures where an agent made the wrong change because the repo lacked
-  context.
-- Compare harness behavior across Claude Code, Codex, Cursor, and other tools.
+## License
 
-## Share
-
-If this idea resonates, please star the repo and share it with someone building
-with coding agents.
-
-Short description:
-
-> An agent-ready repo harness for Claude Code, Codex, Cursor, and other coding
-> agents: AGENTS.md, product contracts, story packets, validation matrix, and
-> decision records.
+MIT

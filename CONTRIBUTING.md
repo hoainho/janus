@@ -1,4 +1,4 @@
-# Contributing to repository-harness
+# Contributing to Janus
 
 Thanks for helping improve the harness.
 

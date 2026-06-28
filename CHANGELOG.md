@@ -28,7 +28,7 @@
 
 ## 2026-06-09 - PR #13
 
-- docs(phase5): Phase 5 — Evolution Infrastructure scope (@hoangnb24)
+- docs(phase5): Phase 5 — Evolution Infrastructure scope
 - Merge commit: `bfef94a77acfa33af81f6da96bc06f053d7f5164`
 - Harness CLI release: `harness-cli-v0.1.9`
 - Changed files:

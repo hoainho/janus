@@ -45,7 +45,7 @@ Source: `crates/harness-cli/src/interface.rs` + `scripts/schema/001–005-*.sql`
 
 ## 2. Coverage Gaps
 
-The following gates from `.claude/rules/harness.md` have **no backing table, column, or CLI command** in the upstream schema/CLI:
+The following gates from `.claude/rules/harness.md` have **no backing table, column, or CLI command** in the Janus schema/CLI:
 
 ### GAP-1: P1 — Push Permission Log
 **Gate behavior:** Before every push/history rewrite, structured preview is shown; user must explicitly confirm (`yes`). Force-push, rebase, cherry-pick, branch-delete need a second confirm.  

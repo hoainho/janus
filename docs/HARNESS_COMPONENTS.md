@@ -1,6 +1,6 @@
 # Harness Components
 
-This taxonomy maps the current `repository-harness` repository to two
+This taxonomy maps the current `janus` repository to two
 component frameworks used by Phase 2 and updated by Phase 3 active
 observability work:
 
