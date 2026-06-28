@@ -583,7 +583,7 @@ how to recover the harness if the repo is cloned standalone.
 The Janus installer bootstraps the harness into any project:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
+curl -fsSL "https://raw.githubusercontent.com/nano-step/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 ```
 
 The installer downloads the prebuilt Harness CLI, verifies its checksum,
@@ -615,5 +615,5 @@ ln -sfn ../../../docs/evidence/README.md docs/evidence/README.md
 To use the full Janus installer instead:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
+curl -fsSL "https://raw.githubusercontent.com/nano-step/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
 ```

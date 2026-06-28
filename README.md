@@ -124,18 +124,443 @@ harness-cli propose
 
 ---
 
+## ⚙️ How Janus Works: From Developer Request to Shipped Goal
+
+Janus transforms vague developer requests into **validated, traceable outcomes** through a structured 9-gate pipeline. Here's the complete mechanism:
+
+### The 9-Gate Pipeline
+
+```
+Developer Request
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│ GATE 1: Feature Intake                  │
+│ • Classify risk (0-10 flags)            │
+│ • Choose lane: tiny/normal/high-risk    │
+│ • Record: harness-cli intake            │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 2: Proposal                        │
+│ • OpenSpec: proposal.md + design.md     │
+│ • Define scope, architecture, tasks     │
+│ • Required for: normal, high-risk       │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 3: Deep-Design Review              │
+│ • Metis + Oracle parallel analysis      │
+│ • Find gaps, ambiguities, risks         │
+│ • Block until clean pass                │
+│ • Required for: high-risk (mandatory)   │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 4: Spec + Story                    │
+│ • Generate specs/ from design           │
+│ • Create story packet                   │
+│ • Record: harness-cli story add         │
+│ • Update TEST_MATRIX.md                 │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 5: Validation Ladder               │
+│ • validate:quick (always)               │
+│ • test:integration (normal+)            │
+│ • test:e2e (high-risk)                  │
+│ • Max 2 failures → consult Oracle       │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 6: User-Flow Test                  │
+│ • Test through user's entry point       │
+│ • High-risk: primary + error path       │
+│ • Exempt: infra/refactor/docs           │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 7: Review Gate                     │
+│ • Fresh reviewer ≠ implementer          │
+│ • Verify each acceptance criterion      │
+│ • Record: harness-cli intervention add  │
+│ • Max 1 re-review → escalate to human   │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 8: PR Bot Review                   │
+│ • Automated PR review                   │
+│ • Max 3 push cycles                     │
+│ • Substantive comments → fix            │
+│ • Stylistic → reply or fix              │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│ GATE 9: Archive                         │
+│ • Merge PR                              │
+│ • openspec archive                      │
+│ • Record: harness-cli trace             │
+│ • Update decisions, backlog             │
+└─────────────────────────────────────────┘
+                  │
+                  ▼
+            Shipped Goal ✅
+```
+
+### Gate Evaluation: Lane × Change Type Matrix
+
+Not every gate applies to every task. Janus uses a **2D matrix** to determine which gates are required:
+
+#### Risk Lanes (Vertical Axis)
+
+| Lane | Risk Flags | Description | Example |
+|------|-----------|-------------|---------|
+| 🟢 **Tiny** | 0-1 | Low-risk, narrow scope | Fix typo, update config |
+| 🟡 **Normal** | 2-3 | Story-sized, bounded blast radius | Add feature, fix bug |
+| 🔴 **High-Risk** | 4+ or hard gate | Touches auth, data, contracts, multi-domain | Auth migration, schema change |
+
+#### Change Types (Horizontal Axis)
+
+| Change Type | User-Flow Test? | Review Gate? | Example |
+|-------------|:---------------:|:------------:|---------|
+| **user-feature** | ✅ Required | ✅ Required | New endpoint, UI page |
+| **bug-fix** | ✅ Required | ✅ Required | Fix broken behavior |
+| **infrastructure** | ❌ Smoke test | ⚠️ Self-verify | DB migration, env var |
+| **refactor** | ❌ Existing tests | ⚠️ Self-verify | Extract helper, rename |
+| **docs** | ❌ Not needed | ❌ Not needed | README, comments |
+| **dependency-bump** | ❌ Smoke test | ⚠️ Self-verify | Upgrade library |
+
+#### Gate Requirements by Lane × Change Type
+
+| Lane | user-feature / bug-fix | infrastructure / refactor | docs |
+|------|------------------------|---------------------------|------|
+| **Tiny** | Quick check only | Quick check only | Quick check only |
+| **Normal** | All gates (1-9) | Gates 1-2, 5, 8 | Gates 1, 8 |
+| **High-Risk** | All gates (1-9) + human confirmation | Gates 1-3, 5-6, 8 | Gates 1, 8 |
+
+### Risk Classification: The 10-Flag Checklist
+
+Janus automatically scores risk using **10 flags**. Each flag adds +1 to the risk score:
+
+| # | Risk Flag | Triggers When Work Touches | Hard Gate? |
+|---|-----------|---------------------------|:----------:|
+| 1 | **Auth** | Login, logout, sessions, JWT, password, refresh token | ✅ Yes |
+| 2 | **Authorization** | Roles, permissions, tenant scope, company scope | ✅ Yes |
+| 3 | **Data Model** | Schema, migrations, uniqueness, deletion, retention | ✅ Yes |
+| 4 | **Audit/Security** | Audit logs, privacy, sensitive data, access logs | ✅ Yes |
+| 5 | **External Systems** | Email, payments, cloud services, provider SDKs, queues, webhooks | ✅ Yes |
+| 6 | **Public Contracts** | API shape, response envelope, client-visible behavior | ✅ Yes |
+| 7 | **Cross-Platform** | Desktop/mobile/browser split, native shell, deep links | ❌ No |
+| 8 | **Existing Behavior** | Already implemented or test-covered behavior changes | ❌ No |
+| 9 | **Weak Proof** | Unclear or missing tests around affected area | ❌ No |
+| 10 | **Multi-Domain** | More than one product domain changes at once | ❌ No |
+
+**Classification Rules:**
+- **0-1 flags** → Tiny or Normal (based on code impact)
+- **2-3 flags** → Normal with stronger validation
+- **4+ flags** → High-Risk
+- **Any hard gate** → High-Risk (unless human explicitly narrows scope)
+
+### How Janus Evaluates Each Gate
+
+#### Gate 1: Feature Intake
+**Purpose**: Classify risk before any work begins  
+**Input**: Developer request (natural language)  
+**Process**:
+1. Parse request → identify affected surfaces
+2. Run 10-flag risk checklist
+3. Count flags → determine lane
+4. Check for hard gates → escalate if needed
+5. Record classification
+
+**Output**:
+```bash
+harness-cli intake \
+  --type "change-request" \
+  --summary "Add OAuth login with Google" \
+  --lane normal
+```
+
+**Pass Criteria**: Lane assigned, intake recorded  
+**Fail Action**: Cannot proceed without intake record
+
+---
+
+#### Gate 2: Proposal
+**Purpose**: Define scope, architecture, and tasks before implementation  
+**Input**: Intake classification  
+**Process**:
+1. Create OpenSpec change: `openspec new change "<name>"`
+2. Write `proposal.md` (what and why)
+3. Write `design.md` (how: architecture, data model, API shape)
+4. Write `tasks.md` (implementation checklist)
+
+**Output**:
+```
+openspec/changes/<name>/
+├── proposal.md
+├── design.md
+└── tasks.md
+```
+
+**Pass Criteria**: All 3 artifacts exist, OpenSpec validates  
+**Fail Action**: Revise artifacts, re-validate  
+**Applies To**: Normal, High-Risk (skip for Tiny)
+
+---
+
+#### Gate 3: Deep-Design Review
+**Purpose**: Catch architectural gaps before specs are locked  
+**Input**: proposal.md + design.md  
+**Process**:
+1. Spawn **Metis** agent (scope/risk analysis)
+2. Spawn **Oracle** agent (architecture analysis) — *parallel*
+3. Cross-critique their findings
+4. Produce confidence-scored synthesis
+5. Identify blocking gaps vs stylistic gaps
+
+**Output**: Gap analysis report  
+**Pass Criteria**: No blocking gaps (auth, data model, API contract, isolation boundary, multi-domain)  
+**Fail Action**: Revise proposal/design → re-run deep-design → repeat until clean pass  
+**Applies To**: High-Risk (mandatory), Normal (optional)
+
+---
+
+#### Gate 4: Spec + Story
+**Purpose**: Break design into testable behavior slices  
+**Input**: Approved proposal + design  
+**Process**:
+1. Generate specs: `openspec instructions specs --change "<name>"`
+2. Validate specs: `openspec validate "<name>" --strict`
+3. Create story packet from `docs/templates/story.md`
+4. Record story: `harness-cli story add --id <id> --title "<text>" --lane <lane>`
+5. Update `docs/TEST_MATRIX.md` with expected proof
+
+**Output**:
+```
+docs/stories/<name>.md
+docs/TEST_MATRIX.md (updated)
+```
+
+**Pass Criteria**: Story recorded, TEST_MATRIX updated  
+**Fail Action**: Revise specs, re-validate  
+**Applies To**: Normal, High-Risk
+
+---
+
+#### Gate 5: Validation Ladder
+**Purpose**: Prove code correctness at appropriate depth  
+**Input**: Implemented code  
+**Process**:
+1. Run `validate:quick` (lint, typecheck, unit tests) — *always*
+2. Run `test:integration` (backend, database, provider checks) — *normal+*
+3. Run `test:e2e` (user-visible flows) — *high-risk*
+4. Record results in story Evidence section
+
+**Output**:
+```bash
+# Story update with proof
+harness-cli story update --id US-001 \
+  --unit 1 --integration 1 --e2e 0
+```
+
+**Pass Criteria**: All required layers exit 0  
+**Fail Action**: Fix → re-validate (max 2 attempts) → consult Oracle  
+**Applies To**: All lanes (layer varies by lane)
+
+---
+
+#### Gate 6: User-Flow Test
+**Purpose**: Verify behavior through user's actual entry point  
+**Input**: Validated code  
+**Process**:
+1. Identify changed surface (API endpoint, UI page, bot command)
+2. Choose matching tool (Playwright, API test, simulator)
+3. Run test through user's entry point
+4. High-risk: cover primary path + at least 1 error/edge path
+5. Capture evidence (screenshots, logs, output)
+
+**Output**:
+```
+docs/evidence/<name>/
+├── screenshot.png
+└── test-output.log
+```
+
+**Pass Criteria**: Test passes, evidence captured  
+**Fail Action**: Fix → re-test (max 2 attempts)  
+**Applies To**: user-feature, bug-fix (skip for infra/refactor/docs)
+
+---
+
+#### Gate 7: Review Gate
+**Purpose**: Independent verification by fresh reviewer  
+**Input**: Implemented code + evidence  
+**Process**:
+1. Spawn fresh review agent (reviewer ≠ implementer)
+2. Reviewer reads: git diff, proposal, design, spec, evidence
+3. For each acceptance criterion, find evidence
+4. Produce verdict: PASS or FAIL (with unmet criteria)
+5. Record: `harness-cli intervention add --type review`
+
+**Output**:
+```markdown
+## Review Verdict: PASS
+
+Reviewer: Oracle agent
+Date: 2025-01-15
+Commit: abc123
+
+| Acceptance Criterion | Evidence | Status |
+|----------------------|----------|--------|
+| Users can login with Google | test_oauth.py passes | ✅ |
+| Session persists across refresh | Playwright screenshot | ✅ |
+```
+
+**Pass Criteria**: All criteria met with evidence  
+**Fail Action**: Fix → re-review (max 1 re-review) → escalate to human  
+**Applies To**: user-feature, bug-fix (Normal: single Oracle; High-Risk: 5 parallel sub-agents)
+
+---
+
+#### Gate 8: PR Bot Review
+**Purpose**: Automated code quality check in CI  
+**Input**: Pushed branch + PR  
+**Process**:
+1. Push branch, open PR
+2. PR bot posts review comments
+3. Agent triages comments:
+   - **Substantive** (correctness, security, missing case) → MUST fix
+   - **Stylistic** (naming, ordering) → fix if cheap, or reply with reasoning
+4. After fix: re-run validate + user-flow + Review Gate
+5. Push again, wait for bot re-review
+6. Max 3 push cycles → escalate to human
+
+**Output**: Approved PR  
+**Pass Criteria**: Bot approves (no unresolved substantive comments)  
+**Fail Action**: Fix comments → re-validate → push (max 3 cycles)  
+**Applies To**: All lanes (if pushing to remote)
+
+---
+
+#### Gate 9: Archive
+**Purpose**: Capture lessons, update durable state  
+**Input**: Merged PR  
+**Process**:
+1. Merge PR
+2. Archive OpenSpec change: `openspec archive "<name>"`
+3. Record trace: `harness-cli trace --summary "<text>" --outcome completed`
+4. Update `docs/decisions/` if architecture changed
+5. Update `docs/TEST_MATRIX.md` with final evidence
+6. Add friction to backlog if any: `harness-cli backlog add`
+
+**Output**:
+```bash
+# Trace record
+harness-cli trace \
+  --summary "Implemented OAuth login with Google" \
+  --outcome completed \
+  --story US-001 \
+  --duration 3600 \
+  --decisions "Used JWT, not sessions"
+```
+
+**Pass Criteria**: Trace recorded, story marked done  
+**Fail Action**: Cannot archive without trace  
+**Applies To**: All lanes
+
+---
+
+### Complete Gate Flow Example
+
+**Developer Request**: "Add user authentication with Google OAuth"
+
+**Gate 1: Intake**
+```bash
+harness-cli intake \
+  --type "feature" \
+  --summary "Google OAuth login" \
+  --lane normal  # 2 flags: Auth + Public Contracts
+```
+
+**Gate 2: Proposal**
+```bash
+openspec new change "google-oauth-login"
+# Write proposal.md, design.md, tasks.md
+```
+
+**Gate 3: Deep-Design** (optional for normal)
+```
+/deep-design
+# Metis + Oracle analyze → no blocking gaps → proceed
+```
+
+**Gate 4: Spec + Story**
+```bash
+openspec instructions specs --change "google-oauth-login"
+harness-cli story add --id US-001 --title "Google OAuth login" --lane normal
+```
+
+**Gate 5: Validation**
+```bash
+make validate-quick  # ✅ pass
+make test-integration  # ✅ pass
+harness-cli story update --id US-001 --unit 1 --integration 1
+```
+
+**Gate 6: User-Flow Test**
+```bash
+# Playwright test: login with Google, verify session
+npm run test:e2e -- --grep "OAuth login"
+# Screenshot captured to docs/evidence/US-001/
+```
+
+**Gate 7: Review Gate**
+```bash
+# Spawn Oracle reviewer
+# Oracle verifies each acceptance criterion → PASS
+harness-cli intervention add --type review --description "PASS" --source agent
+```
+
+**Gate 8: PR Bot Review**
+```bash
+git push origin feature/google-oauth
+gh pr create
+# Bot comments: "Add rate limiting to OAuth endpoint"
+# Fix → push → bot approves
+```
+
+**Gate 9: Archive**
+```bash
+openspec archive "google-oauth-login"
+harness-cli trace --summary "Implemented Google OAuth" --outcome completed --story US-001
+harness-cli story update --id US-001 --status done
+```
+
+**Result**: Shipped goal ✅ with full trace, decisions, and evidence.
+
+---
+
 ## 🚀 Quick Start
 
 ### One-Line Install
 
 **macOS / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nano-step/janus/main/scripts/install-harness.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.ps1 | iex
+irm https://raw.githubusercontent.com/nano-step/janus/main/scripts/install-harness.ps1 | iex
 ```
 
 ### What Gets Installed
@@ -599,9 +1024,9 @@ Built with:
 **Ready to transform your AI-assisted development?**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nano-step/janus/main/scripts/install-harness.sh | bash
 ```
 
-[⭐ Star this repo](https://github.com/hoainho/janus) if you find it useful!
+[⭐ Star this repo](https://github.com/nano-step/janus) if you find it useful!
 
 </div>
