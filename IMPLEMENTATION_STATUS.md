@@ -10,7 +10,7 @@ _Round: **Foundation**. Updated 2026-06-28._
 
 - **Storage:** SQLite for OLTP gate-writes (zero-daemon). Postgres deferred to a future one-way OLAP projection (only on confirmed team-shared need). See `docs/p1-schema-and-projection.md`.
 - **Run-mode:** native binary on PATH (not Docker-wrapper, which would re-add a daemon dependency).
-- **Code home:** `https://github.com/hoainho/janus`
+- **Code home:** `https://github.com/nano-step/janus`
 
 ## Done & verified
 
