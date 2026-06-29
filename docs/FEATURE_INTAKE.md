@@ -1,5 +1,9 @@
 # Feature Intake
 
+**PREREQUISITE**: Complete EVAL-HARNESS pre-check first (see `docs/EVAL_HARNESS.md`). Do NOT proceed if readiness < 90%.
+
+---
+
 Every implementation prompt enters the intake gate before code changes. A new
 project spec also enters through this gate before it becomes product docs,
 stories, or implementation work.
