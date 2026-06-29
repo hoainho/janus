@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- J -->
+  <path d="M20 20 L50 20 L50 80 Q50 100 30 100 L20 100" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  
+  <!-- A -->
+  <path d="M70 100 L95 20 L120 100" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <line x1="78" y1="65" x2="112" y2="65" stroke="url(#grad)" stroke-width="6"/>
+  
+  <!-- N -->
+  <path d="M135 100 L135 20 L175 100 L175 20" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  
+  <!-- U -->
+  <path d="M195 20 L195 80 Q195 100 220 100 Q245 100 245 80 L245 20" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  
+  <!-- S -->
+  <path d="M275 30 Q260 20 260 40 Q260 60 280 60 Q300 60 300 80 Q300 100 275 100 L265 100" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  
+  <!-- Tagline -->
+  <text x="320" y="55" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#6B7280" font-weight="500">The Unified EVAL Engine</text>
+  <text x="320" y="75" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#6B7280" font-weight="500">for AI-Assisted Development</text>
+  
+  <!-- Accent dot -->
+  <circle cx="310" cy="60" r="4" fill="url(#grad)"/>
+</svg>

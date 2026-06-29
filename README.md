@@ -1,16 +1,38 @@
 # Janus
 
-**Agent-ready engineering harness for AI-assisted development.**
+<img src="https://raw.githubusercontent.com/hoainho/janus/main/assets/logo.svg" alt="JANUS" width="400">
 
-### **The EVAL Engine for AI-Assisted Development**
+# JANUS
 
-*Gate evaluation system that ensures quality before code ships. Ask first, build second.*
+<h3>The Unified EVAL Engine for AI-Assisted Development</h3>
 
-[![License: removed](https://img.shields.io/badge/License-removed-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-blue.svg)](#installation)
+<p><strong>Single binary. SQLite-native. Goal-driven quality gates.</strong></p>
 
-**[Quick Start](#-quick-start)** • **[How It Works](#-how-it-works)** • **[Documentation](#-documentation)**
+<p>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-removed-blue.svg" alt="License: removed"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.70+-orange.svg" alt="Rust"></a>
+  <a href="https://www.npmjs.com/package/@nano-step/janus"><img src="https://img.shields.io/npm/v/@nano-step/janus.svg" alt="npm"></a>
+  <a href="#installation"><img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
+</p>
+
+<p>
+  <a href="#installation">Install</a> · 
+  <a href="#quick-start">Quick Start</a> · 
+  <a href="#benchmarks">Benchmarks</a> · 
+  <a href="#why-janus">Why Janus</a>
+</p>
+
+---
+
+</div>
+
+## The Problem
+
+AI agents ship code that doesn't match what was asked. They skip validation because "it looks right." They waste tokens building the wrong thing.
+
+**Janus fixes this.**
+
+It's a quality gate system that evaluates before implementation, scores before shipping, and tracks improvement over time.
 
 ---
 
