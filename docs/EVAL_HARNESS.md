@@ -1,12 +1,18 @@
 # EVAL-HARNESS: Pre-Check Gate
 
-**Purpose**: Evaluate harness readiness BEFORE any process starts. Block if critical info missing. Ask Product (user) to fill gaps.
+**Purpose**: Prevent failures BEFORE they happen. Based on research from:
+- Columbia University: 9 Critical Failure Patterns of Coding Agents
+- Microsoft: Taxonomy of Failure Mode in Agentic AI Systems
+- Industry: CI/CD Quality Gates best practices
+- Senior Engineer patterns: What experts ask before coding
+
+---
 
 ## Core Principle
 
-> "A harness that starts without readiness is theater, not engineering."
+> "Quality gates are binary. A gate either passes or blocks. Warning states undermine the system." — Industry standard
 
-Every process MUST pass EVAL-HARNESS before intake. No exceptions.
+> "Most agent failures are scaffold failures: things the agent never sees, never replays, or never bounds." — Research finding
 
 ---
 
@@ -17,14 +23,14 @@ User Request
      │
      ▼
 ┌─────────────────────────────────┐
-│  EVAL-HARNESS Pre-Check        │ ← YOU ARE HERE
-│  • Is request clear enough?    │
-│  • Do we have enough context?  │
-│  • Are prerequisites met?      │
-│  • What questions remain?      │
+│  EVAL-HARNESS Pre-Check        │ ← BLOCK if not ready
+│  • Failure Mode Prevention     │
+│  • Risk Assessment             │
+│  • Context Verification        │
+│  • Success Criteria            │
 └────────────────┬────────────────┘
                  │
-                 ├── BLOCKED ──► Ask questions → Wait for answers → Re-eval
+                 ├── BLOCKED → Ask questions → Wait → Re-eval
                  │
                  ▼ READY
 ┌─────────────────────────────────┐
@@ -34,187 +40,246 @@ User Request
 
 ---
 
-## Readiness Checklist
+## Risk Tiers
 
-### Level 1: Request Clarity (MUST PASS)
+| Tier | When | Questions Required | Time Budget |
+|------|------|-------------------|-------------|
+| **Tiny** | 0-1 risk flags | 4 MUST | < 1 min |
+| **Normal** | 2-3 risk flags | 8 MUST | < 3 min |
+| **High-Risk** | 4+ flags or hard gate | 12 MUST + context check | < 5 min |
 
-| # | Check | Pass When | Fail Action |
-|---|-------|-----------|-------------|
-| 1.1 | **Goal stated** | User described what they want | Ask: "What is the goal of this change?" |
-| 1.2 | **Scope bounded** | Clear what's in/out of scope | Ask: "What should this change NOT do?" |
-| 1.3 | **Success defined** | Know when it's "done" | Ask: "How will we know this is complete?" |
-| 1.4 | **Surface identified** | Know which code/docs change | Ask: "Which files/modules will be affected?" |
+---
 
-### Level 2: Context Availability (MUST PASS)
+## MUST Ask Questions (Based on Failure Modes)
 
-| # | Check | Pass When | Fail Action |
-|---|-------|-----------|-------------|
-| 2.1 | **Existing code read** | Agent has read relevant files | Agent reads files |
-| 2.2 | **Patterns known** | Understand current conventions | Agent explores patterns |
-| 2.3 | **Dependencies mapped** | Know what this touches | Ask: "What does this depend on?" |
-| 2.4 | **Constraints listed** | Know limitations | Ask: "Any constraints I should know?" |
+### Tier 1: Request Clarity (ALL tiers)
 
-### Level 3: Harness State (MUST PASS)
+These prevent **Business Logic Mismatch** (Failure Mode #3 from research):
 
-| # | Check | Pass When | Fail Action |
-|---|-------|-----------|-------------|
-| 3.1 | **DB initialized** | `harness.db` exists | Run `harness-cli init` |
-| 3.2 | **Stories checked** | No conflicting work | Run `harness-cli query stories` |
-| 3.3 | **Decisions checked** | Know past choices | Run `harness-cli query decisions` |
-| 3.4 | **Matrix current** | Validation expectations set | Run `harness-cli query matrix` |
+| # | Question | Why It Matters | Pass When |
+|---|----------|----------------|-----------|
+| 1.1 | **What problem are we solving?** | Prevents building wrong thing | Clear problem statement |
+| 1.2 | **Who is impacted?** | Prevents wrong assumptions about users | Specific persona/role identified |
+| 1.3 | **What does success look like?** | Prevents "done" ambiguity | Measurable criteria defined |
+| 1.4 | **What is explicitly OUT of scope?** | Prevents scope creep | Boundaries stated |
 
-### Level 4: Product Readiness (MUST PASS for normal/high-risk)
+**Fail Action**: Ask these 4 questions. Do NOT proceed without answers.
 
-| # | Check | Pass When | Fail Action |
-|---|-------|-----------|-------------|
-| 4.1 | **Acceptance criteria** | Clear "done" conditions | Ask: "What must be true when this is done?" |
-| 4.2 | **Edge cases listed** | Know failure modes | Ask: "What could go wrong?" |
-| 4.3 | **User flow defined** | Know user's path | Ask: "Walk me through the user journey" |
-| 4.4 | **Priority confirmed** | Know if urgent | Ask: "How urgent is this? (low/medium/high)" |
+---
+
+### Tier 2: Context Verification (Normal + High-Risk)
+
+These prevent **Codebase Awareness Issues** (Failure Mode #8 from research):
+
+| # | Question | Why It Matters | Pass When |
+|---|----------|----------------|-----------|
+| 2.1 | **Have we done this before?** | Prevents reinventing wheel | Past work checked |
+| 2.2 | **What existing patterns apply?** | Prevents architecture drift | Patterns identified |
+| 2.3 | **What depends on this?** | Prevents breaking downstream | Dependencies mapped |
+| 2.4 | **What constraints exist?** | Prevents impossible solutions | Constraints listed |
+
+**Fail Action**: Agent must explore codebase before answering.
+
+---
+
+### Tier 3: Risk Assessment (High-Risk only)
+
+These prevent **Security Vulnerabilities** (Failure Mode #6 from research):
+
+| # | Question | Why It Matters | Pass When |
+|---|----------|----------------|-----------|
+| 3.1 | **What could go wrong?** | Prevents blind spots | Failure modes listed |
+| 3.2 | **What's the blast radius?** | Prevents cascading failures | Impact bounded |
+| 3.3 | **How do we rollback?** | Prevents stuck states | Rollback path exists |
+| 3.4 | **What data is affected?** | Prevents data corruption | Data impact assessed |
+
+**Fail Action**: Must have rollback plan before proceeding.
+
+---
+
+### Tier 4: Success Criteria (ALL tiers)
+
+These prevent **Testing Illusion** (Failure Mode #10 from research):
+
+| # | Question | Why It Matters | Pass When |
+|---|----------|----------------|-----------|
+| 4.1 | **How will we verify this works?** | Prevents "looks right" trap | Test plan exists |
+| 4.2 | **What are the edge cases?** | Prevents hidden bugs | Edge cases listed |
+| 4.3 | **What's the acceptance criteria?** | Prevents partial delivery | Criteria defined |
+| 4.4 | **How will we know it's done?** | Prevents endless iteration | Done state clear |
+
+**Fail Action**: Define verification method before coding.
+
+---
+
+## Failure Mode Prevention Matrix
+
+Based on research from Columbia University and Microsoft:
+
+| Failure Mode | Prevention Question | Gate |
+|--------------|---------------------|------|
+| **Business Logic Mismatch** | "What problem are we solving?" | 1.1 |
+| **State Management Failures** | "What state changes occur?" | 2.3 |
+| **Security Vulnerabilities** | "What data is affected?" | 3.4 |
+| **Codebase Awareness Issues** | "Have we done this before?" | 2.1 |
+| **API Integration Failures** | "What depends on this?" | 2.3 |
+| **Data Management Errors** | "What data is affected?" | 3.4 |
+| **Exception Handling** | "What could go wrong?" | 3.1 |
+| **Repeated Code** | "What existing patterns apply?" | 2.2 |
+| **Presentation Mismatch** | "What does success look like?" | 1.3 |
 
 ---
 
 ## Question Templates
 
-### For Unclear Goals
+### For Unclear Requests (Gate 1.x fails)
 
 ```
-I want to make sure I understand correctly.
+I need clarity before proceeding.
 
 **What I understood**: [Your interpretation]
-**What I'm unsure about**: [Specific ambiguity]
+**What I'm unsure about**: [Specific gap]
 
-**Questions**:
-1. [Specific question about goal]
-2. [Specific question about scope]
-3. [Specific question about success criteria]
+**Please answer**:
+1. What problem are we solving?
+2. Who is impacted?
+3. What does success look like?
+4. What is out of scope?
 
-Please clarify before I proceed.
+Reply with answers or "proceed with assumptions" (I'll list them).
 ```
 
-### For Missing Context
+### For Missing Context (Gate 2.x fails)
 
 ```
-I need more context to proceed safely.
+I need to understand the codebase better.
 
-**What I know**: [Current understanding]
+**What I found**: [Current understanding]
 **What I'm missing**: [Gaps]
 
+**I'll check**:
+- [ ] Existing patterns
+- [ ] Past decisions
+- [ ] Dependencies
+- [ ] Constraints
+
+Give me a moment to explore, or tell me if you have this context.
+```
+
+### For Risk Concerns (Gate 3.x fails)
+
+```
+This has risk factors that need attention.
+
+**Risk flags**: [List]
+**Blast radius**: [Assessment]
+
 **Questions**:
-1. [Question about existing behavior]
-2. [Question about constraints]
-3. [Question about dependencies]
+1. What could go wrong?
+2. How do we rollback?
+3. What data is affected?
 
-This will help me avoid mistakes.
+I need answers before proceeding with high-risk work.
 ```
 
-### For Harness State Issues
+### For Undefined Success (Gate 4.x fails)
 
 ```
-The harness isn't ready for this work.
-
-**Issues found**:
-- [ ] [Issue 1]
-- [ ] [Issue 2]
-
-**Questions**:
-1. Should I fix these first?
-2. Or should we proceed without full harness?
-
-Note: Proceeding without harness increases risk.
-```
-
-### For Product Readiness
-
-```
-I need to understand the "done" state better.
+I need to know when we're "done."
 
 **What I know**: [Current understanding]
 **What I'm unsure about**: [Gaps]
 
-**Questions**:
-1. What are the acceptance criteria?
-2. What edge cases should I handle?
-3. What's the priority level?
+**Please define**:
+1. How will we verify this works?
+2. What are the edge cases?
+3. What's the acceptance criteria?
 
-This ensures I build the right thing.
+Without this, I can't guarantee quality.
 ```
 
 ---
 
 ## Readiness Score
 
-After checklist, compute:
-
 ```text
-Score = (Passed Checks / Total Checks) × 100
+Score = (Passed MUST checks / Total MUST checks) × 100
 
 Readiness Levels:
-  90-100%: READY — proceed to intake
-  70-89%:  PARTIAL — ask questions, then proceed
-  50-69%:  BLOCKED — must fill gaps first
+  100%:    READY — proceed to intake
+  75-99%:  PARTIAL — ask missing questions
+  50-74%:  BLOCKED — must fill gaps
   <50%:    NOT READY — too many unknowns
 ```
+
+**Rule**: NEVER proceed below 75% readiness for normal/high-risk work.
 
 ---
 
 ## Output Format
 
-EVAL-HARNESS produces:
-
 ```markdown
 ## EVAL-HARNESS Result
 
-**Readiness**: [READY/PARTIAL/BLOCKED/NOT_READY]
+**Tier**: [tiny/normal/high-risk]
+**Readiness**: [READY/PARTIAL/BLOCKED]
 **Score**: [X]%
 
 ### Passed
-- [x] [Check 1]
-- [x] [Check 2]
+- [x] 1.1 Problem defined: "Add OAuth login"
+- [x] 1.2 Users identified: "End users"
+- [x] 1.3 Success criteria: "Users can login with Google"
 
 ### Failed
-- [ ] [Check 3] — [Question to ask]
-- [ ] [Check 4] — [Question to ask]
+- [ ] 1.4 Out of scope: Not defined
+- [ ] 4.1 Verification: No test plan
 
 ### Questions for Product
-1. [Question 1]
-2. [Question 2]
-3. [Question 3]
+1. What is explicitly out of scope?
+2. How will we verify this works?
+
+### Risk Assessment
+- Risk flags: 2 (Auth + Public Contracts)
+- Lane: normal
+- Gates required: All (1-9)
 
 ### Recommendation
-[What to do next]
+Answer the 2 questions above, then proceed to intake.
 ```
 
 ---
 
-## Integration with AGENTS.md
+## Integration with Workflow
 
-Add to agent entrypoint:
-
-```markdown
-## Before Any Work
-
-1. Run EVAL-HARNESS checklist
-2. If < 90% ready, ask questions
-3. Wait for answers
-4. Re-eval until ready
-5. Only then proceed to intake
+```text
+1. User request arrives
+2. Run EVAL-HARNESS checklist
+3. If score < 75%:
+   - Ask missing questions
+   - Wait for answers
+   - Re-eval
+4. If score ≥ 75%:
+   - Proceed to Feature Intake
+   - Record readiness in harness-cli
 ```
 
 ---
 
-## CLI Integration (Future)
+## CLI Integration
 
 ```bash
 # Check readiness
 harness-cli eval-harness --request "Add OAuth login"
 
 # Output
+Tier: normal
 Readiness: PARTIAL (75%)
 Questions:
-  - What OAuth providers? (Google, GitHub, etc.)
-  - Session duration?
-  - Refresh token strategy?
+  - What is out of scope?
+  - How will we verify this works?
+
+# Record readiness
+harness-cli intake --type feature --summary "OAuth" --lane normal --readiness 75
 ```
 
 ---
@@ -224,24 +289,29 @@ Questions:
 ❌ **Starting without clarity**: "I'll figure it out as I go"
 ❌ **Assuming context**: "The user probably means X"
 ❌ **Skipping questions**: "I don't want to bother them"
-❌ **Ignoring harness state**: "The DB doesn't matter"
+❌ **Soft gates**: "Warning" states that let code through
 
 ✅ **Ask first**: Better to ask 3 questions than build wrong thing
-✅ **Verify assumptions**: State what you think, ask if correct
-✅ **Check harness**: Past decisions inform present work
-✅ **Document gaps**: Record what's missing for future
+✅ **Binary gates**: Pass or fail, no warnings
+✅ **Risk-tiered**: More questions for higher risk
+✅ **Failure-mode based**: Questions prevent known failures
+
+---
+
+## Sources
+
+- Columbia University: "9 Critical Failure Patterns of Coding Agents" (2026)
+- Microsoft: "Taxonomy of Failure Mode in Agentic AI Systems"
+- Industry: CI/CD Quality Gates best practices (InfoQ, Keploy, JetBrains)
+- Senior Engineer patterns: Requirements gathering best practices
+- Production Readiness: Checklist standards (Cortex, penguinboi/preflight-checks)
 
 ---
 
 ## Summary
 
-EVAL-HARNESS is the **quality gate before the quality gates**. It ensures:
+EVAL-HARNESS is based on **real failure modes** from research, not assumptions.
 
-1. **We understand the request** (clarity)
-2. **We have enough context** (information)
-3. **The harness is ready** (state)
-4. **Product is ready** (criteria)
+Each question prevents a **specific, documented failure pattern**.
 
-Only when all 4 are true do we proceed.
-
-**Better to ask questions upfront than fix mistakes later.**
+**Better to ask questions upfront than debug failures later.**
