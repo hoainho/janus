@@ -14,3 +14,4 @@ scripts/bin/harness-cli.exe
 # eval generated artifacts
 scripts/__pycache__/
 scripts/recall_health.json
+.omc/

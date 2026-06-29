@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-06-29 - Eval Harness Integration
+
+- feat(eval): Unified eval harness with SQLite storage, goal tracking, context evaluation
+- feat(eval): Add 9 check kinds (shell, jq, file, output, llm_judge, prompt_quality, response_quality, context_relevance)
+- feat(eval): Add goal-driven workflow with progress tracking and suggestions
+- feat(eval): Add context evaluation for prompt/response quality scoring
+- feat(eval): Add quality scoring with rule-based + LLM judge hybrid approach
+- feat(npm): Add npm package for cross-platform installation (@nano-step/janus)
+- feat(ci): Add GitHub Actions for auto-release
+- docs: Update README with benchmarks and professional formatting
+- Harness CLI release: `v0.1.10`
+- Changed files:
+  - `crates/harness-cli/src/eval/` (15 new files)
+  - `crates/harness-cli/src/eval/scoring.rs`
+  - `crates/harness-cli/src/eval/attribution.rs`
+  - `crates/harness-cli/src/eval/case.rs`
+  - `crates/harness-cli/src/eval/context.rs`
+  - `crates/harness-cli/src/eval/quality.rs`
+  - `crates/harness-cli/src/eval/storage.rs`
+  - `crates/harness-cli/src/interface.rs`
+  - `crates/harness-cli/Cargo.toml`
+  - `scripts/schema/007-eval-harness.sql`
+  - `scripts/schema/008-eval-goal-tracking.sql`
+  - `npm/` (new)
+  - `.github/workflows/release.yml`
+  - `README.md`
+  - `CLAUDE.md`
+
 ## 2026-06-15 - PR #20
 
 - fix: add missing files to installer file lists (@NguyenQS504092s)
