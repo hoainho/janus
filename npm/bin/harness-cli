@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+
+const { execSync } = require('child_process');
+const path = require('path');
+const os = require('os');
+
+const binName = os.platform() === 'win32' ? 'harness-cli.exe' : 'harness-cli';
+const binPath = path.join(__dirname, '..', 'bin', binName);
+
+try {
+  const args = process.argv.slice(2).join(' ');
+  execSync(`"${binPath}" ${args}`, { stdio: 'inherit' });
+} catch (error) {
+  process.exit(error.status || 1);
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@nano-step/janus-linux-x64",
+  "version": "0.1.10",
+  "description": "Janus CLI for Linux x64",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": ["bin/"],
+  "engines": {
+    "node": ">=16"
+  }
+}

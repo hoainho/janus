@@ -1,0 +1,11 @@
+{
+  "name": "@nano-step/janus-darwin-arm64",
+  "version": "0.1.10",
+  "description": "Janus CLI for macOS ARM64",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["bin/"],
+  "engines": {
+    "node": ">=16"
+  }
+}

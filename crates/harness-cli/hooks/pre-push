@@ -1,0 +1,61 @@
+#!/bin/sh
+# eval-harness pre-push hook for harness-cli
+# Runs eval harness on changed skills before push
+
+set -e
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+SKILLS_DIR="$REPO_ROOT/.opencode/skills"
+
+if [ ! -d "$SKILLS_DIR" ]; then
+    exit 0
+fi
+
+CHANGED_FILES=$(git diff --name-only HEAD@{1}..HEAD 2>/dev/null || git diff --cached --name-only)
+
+CHANGED_SKILLS=""
+for file in $CHANGED_FILES; do
+    if echo "$file" | grep -q "^\.opencode/skills/[^/]*/"; then
+        skill=$(echo "$file" | sed 's|^\.opencode/skills/\([^/]*\)/.*|\1|')
+        if ! echo "$CHANGED_SKILLS" | grep -q "$skill"; then
+            CHANGED_SKILLS="$CHANGED_SKILLS $skill"
+        fi
+    fi
+done
+
+if [ -z "$CHANGED_SKILLS" ]; then
+    exit 0
+fi
+
+echo "[eval-harness] pre-push: detected changes in skills:$CHANGED_SKILLS"
+
+BYPASS="${EVAL_BYPASS:-0}"
+if [ "$BYPASS" = "1" ]; then
+    echo "[eval-harness] EVAL_BYPASS=1 — skipping eval"
+    exit 0
+fi
+
+for skill in $CHANGED_SKILLS; do
+    echo "[eval-harness] Running eval for skill: $skill"
+    
+    if harness-cli eval run --skill="$skill" --trigger=pre-push 2>&1; then
+        echo "[eval-harness] ✓ $skill passed"
+    else
+        exit_code=$?
+        if [ $exit_code -eq 12 ]; then
+            echo "[eval-harness] ✗ $skill REGRESSION detected"
+            STRICT="${EVAL_STRICT:-0}"
+            if [ "$STRICT" = "1" ]; then
+                echo "[eval-harness] Blocking push (EVAL_STRICT=1)"
+                exit 12
+            else
+                echo "[eval-harness] WARN-ONLY: push proceeding"
+            fi
+        elif [ $exit_code -eq 13 ]; then
+            echo "[eval-harness] Harness error for $skill (exit 13)"
+        fi
+    fi
+done
+
+echo "[eval-harness] pre-push complete"
+exit 0

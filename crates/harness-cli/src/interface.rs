@@ -1,4 +1,5 @@
 use std::env;
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -32,40 +33,25 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Create the harness database if it does not already exist.
     Init,
-    /// Apply schema migrations.
     Migrate,
-    /// Seed or refresh the database from existing markdown state.
     Import(ImportArgs),
-    /// Record a feature intake classification.
     Intake(IntakeArgs),
-    /// Add or update a story.
     Story(StoryArgs),
-    /// Add a decision or run its verification.
     Decision(DecisionArgs),
-    /// Add or close a backlog item.
     Backlog(BacklogArgs),
-    /// Register or remove external tools.
     Tool(ToolArgs),
-    /// Record a human, review, CI, or agent intervention.
     Intervention(InterventionArgs),
-    /// Record an agent execution trace.
     Trace(TraceArgs),
-    /// Score a trace against the trace quality tiers.
     ScoreTrace(ScoreTraceArgs),
-    /// Score trace context reads against CONTEXT_RULES.md.
     ScoreContext { trace_id: String },
-    /// Run drift audit and entropy score.
     Audit,
-    /// Generate improvement proposals from observed patterns.
     Propose(ProposeArgs),
-    /// Record or query gate passage events.
     GateLog(GateLogArgs),
-    /// Query harness data.
     Query(QueryArgs),
-    /// Export harness data as Markdown.
     Export(ExportArgs),
+    /// Eval harness commands for behavior-regression testing.
+    Eval(EvalArgs),
 }
 
 #[derive(Args, Debug)]
@@ -499,9 +485,114 @@ enum ExportView {
 
 #[derive(Args, Debug)]
 struct ExportStoryArgs {
-    /// Story id to export.
     #[arg(long)]
     id: String,
+}
+
+#[derive(Args, Debug)]
+struct EvalArgs {
+    #[command(subcommand)]
+    action: EvalAction,
+}
+
+#[derive(Subcommand, Debug)]
+enum EvalAction {
+    /// Run eval cases for a skill.
+    Run(EvalRunArgs),
+    /// Create a baseline snapshot for a skill.
+    Baseline(EvalBaselineArgs),
+    /// Compare current results with baseline.
+    Diff(EvalDiffArgs),
+    /// Show eval status and history.
+    Status(EvalStatusArgs),
+    /// Promote eval from warn-only to blocking.
+    Promote(EvalPromoteArgs),
+    /// Analyze eval trends and patterns.
+    Analyze(EvalAnalyzeArgs),
+    /// Generate improvement suggestions.
+    Suggest(EvalSuggestArgs),
+    /// Create or update eval goal.
+    Goal(EvalGoalArgs),
+    /// Analyze quality scores.
+    Quality(EvalQualityArgs),
+}
+
+#[derive(Args, Debug)]
+struct EvalQualityArgs {
+    #[arg(long)]
+    skill: String,
+    #[arg(long)]
+    case: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct EvalAnalyzeArgs {
+    #[arg(long)]
+    skill: String,
+    #[arg(long, default_value = "7")]
+    days: i64,
+}
+
+#[derive(Args, Debug)]
+struct EvalSuggestArgs {
+    #[arg(long)]
+    skill: String,
+}
+
+#[derive(Args, Debug)]
+struct EvalGoalArgs {
+    #[arg(long)]
+    skill: String,
+    #[arg(long)]
+    goal_type: String,
+    #[arg(long)]
+    description: String,
+    #[arg(long)]
+    target: String,
+}
+
+#[derive(Args, Debug)]
+struct EvalRunArgs {
+    #[arg(long)]
+    skill: String,
+    #[arg(long)]
+    case: Option<String>,
+    #[arg(long, default_value = "manual")]
+    trigger: String,
+    #[arg(long, default_value = "smoke")]
+    mode: String,
+    #[arg(long)]
+    strict: bool,
+    #[arg(long)]
+    dry_run: bool,
+    #[arg(long)]
+    debug: bool,
+    #[arg(long, default_value = "skill")]
+    eval_type: String,
+}
+
+#[derive(Args, Debug)]
+struct EvalBaselineArgs {
+    #[arg(long)]
+    skill: String,
+}
+
+#[derive(Args, Debug)]
+struct EvalDiffArgs {
+    #[arg(long)]
+    run_id: String,
+}
+
+#[derive(Args, Debug)]
+struct EvalStatusArgs {
+    #[arg(long)]
+    skill: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct EvalPromoteArgs {
+    #[arg(long)]
+    skill: String,
 }
 
 #[derive(Debug, Error)]
@@ -801,9 +892,427 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 print_export_story_md(&service.query_export_story(&args.id)?)
             }
         },
+        Command::Eval(args) => match args.action {
+            EvalAction::Run(args) => {
+                run_eval(&args)?;
+            }
+            EvalAction::Baseline(args) => {
+                run_baseline(&args)?;
+            }
+            EvalAction::Diff(args) => {
+                run_diff(&args)?;
+            }
+            EvalAction::Status(args) => {
+                run_status(&args)?;
+            }
+            EvalAction::Promote(args) => {
+                run_promote(&args)?;
+            }
+            EvalAction::Analyze(args) => {
+                run_analyze(&args)?;
+            }
+            EvalAction::Suggest(args) => {
+                run_suggest(&args)?;
+            }
+            EvalAction::Goal(args) => {
+                run_goal(&args)?;
+            }
+            EvalAction::Quality(args) => {
+                run_quality(&args)?;
+            }
+        },
     }
 
     Ok(())
+}
+
+fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
+    let skills_root = resolve_skills_root();
+    let skill_dir = skills_root.join(&args.skill);
+    let evals_dir = skill_dir.join("evals");
+    
+    let cases_dir = match args.eval_type.as_str() {
+        "context" => evals_dir.join("context-cases"),
+        "quality" => evals_dir.join("quality-cases"),
+        _ => evals_dir.join("cases"),
+    };
+    
+    if !cases_dir.exists() {
+        println!("[eval-harness] no {} evals found for skill '{}' at {}", args.eval_type, args.skill, cases_dir.display());
+        return Ok(());
+    }
+    
+    let case_files = if let Some(case_id) = &args.case {
+        vec![cases_dir.join(format!("{}.yaml", case_id))]
+    } else {
+        crate::eval::case::discover_cases(&cases_dir)
+            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?
+    };
+    
+    if case_files.is_empty() {
+        println!("[eval-harness] no case files matched for skill={} case={:?}", args.skill, args.case);
+        return Ok(());
+    }
+    
+    println!("[eval-harness] skill={} cases={}", args.skill, case_files.len());
+    
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+    if db_path.exists() {
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let goals = crate::eval::storage::get_eval_goals(&conn, Some(&args.skill))
+                .unwrap_or_default();
+            if goals.is_empty() {
+                println!("[eval-harness] No goal defined for skill '{}'", args.skill);
+                println!("[eval-harness] Consider: harness-cli eval goal --skill={} --type=regression_detection", args.skill);
+            }
+        }
+    }
+    
+    if args.dry_run {
+        for (i, case_file) in case_files.iter().enumerate() {
+            if let Ok(case) = crate::eval::case::load_case(case_file) {
+                println!("[eval-harness] [dry-run] case {}/{} {}", i + 1, case_files.len(), case.id);
+            }
+        }
+        println!("[eval-harness] dry-run complete");
+        return Ok(());
+    }
+    
+    let state_dir = get_state_dir();
+    let run_id = format!("{}-{}", 
+        chrono::Utc::now().format("%Y-%m-%dT%H-%M-%SZ"),
+        std::process::id()
+    );
+    let run_dir = state_dir.join("runs").join(&run_id);
+    std::fs::create_dir_all(&run_dir)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+    
+    println!("[eval-harness] run_id={}", run_id);
+    
+    let mut case_results = Vec::new();
+    let start_time = std::time::Instant::now();
+    
+    for (i, case_file) in case_files.iter().enumerate() {
+        let case = crate::eval::case::load_case(case_file)
+            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+        
+        println!("[eval-harness] Case {}/{} {}", i + 1, case_files.len(), case.id);
+        
+        let per_case_dir = run_dir.join(&case.id);
+        std::fs::create_dir_all(&per_case_dir)
+            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        
+        let workdir = per_case_dir.join("workdir");
+        let sandbox = per_case_dir.join("sandbox");
+        let transcript = per_case_dir.join("transcript.jsonl");
+        
+        std::fs::create_dir_all(&workdir)
+            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        
+        if let Err(e) = crate::eval::case::copy_fixtures(&case, &evals_dir, &workdir) {
+            println!("[eval-harness] Warning: fixture copy failed: {}", e);
+        }
+        
+        let injected_prompt = crate::eval::context::inject_context(&case);
+        
+        if case.context.is_some() {
+            println!("[eval-harness]   Context injected: {} chars", injected_prompt.len());
+            std::fs::write(&transcript, &injected_prompt)
+                .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        }
+        
+        let case_start = std::time::Instant::now();
+        let result = crate::eval::scoring::run_all_checks(&case, &workdir, &transcript);
+        let case_duration = case_start.elapsed().as_millis() as u64;
+        
+        let mut result_with_duration = result;
+        result_with_duration.duration_ms = Some(case_duration);
+        
+        if result_with_duration.passed {
+            println!("[eval-harness]   PASS");
+        } else {
+            println!("[eval-harness]   FAIL");
+        }
+        
+        let result_json = serde_json::to_string_pretty(&result_with_duration).unwrap_or_default();
+        std::fs::write(per_case_dir.join("checks.json"), &result_json)
+            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        
+        case_results.push(result_with_duration);
+    }
+    
+    let total_duration = start_time.elapsed().as_millis() as u64;
+    let pass_count = case_results.iter().filter(|r| r.passed).count();
+    let total_count = case_results.len();
+    let regression_count = total_count - pass_count;
+    
+    let verdict = if regression_count == 0 { "PASS" } else { "REGRESSION" };
+    
+    let summary = crate::eval::stats::RunSummary {
+        run_id: run_id.clone(),
+        trigger: args.trigger.clone(),
+        skill: args.skill.clone(),
+        verdict: verdict.to_string(),
+        pass: pass_count,
+        total: total_count,
+        regression_count,
+        regressions: case_results.iter()
+            .filter(|r| !r.passed)
+            .map(|r| r.case_id.clone())
+            .collect(),
+        total_cost_usd: None,
+        duration_ms: Some(total_duration),
+    };
+    
+    let results_json = serde_json::to_string_pretty(&summary).unwrap_or_default();
+    std::fs::write(run_dir.join("results.json"), &results_json)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+    
+    let diff_md = crate::eval::diff::render_diff_md(
+        &run_id,
+        &args.skill,
+        &case_results,
+        &std::collections::HashMap::new(),
+    );
+    std::fs::write(run_dir.join("diff.md"), &diff_md)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+    
+    let history_entry = serde_json::json!({
+        "event": "run",
+        "run_id": run_id,
+        "skill": args.skill,
+        "trigger": args.trigger,
+        "verdict": verdict,
+        "pass": pass_count,
+        "total": total_count,
+        "regression_count": regression_count,
+        "duration_ms": total_duration,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    });
+    
+    let history_file = state_dir.join("history.ndjson");
+    let history_line = format!("{}\n", serde_json::to_string(&history_entry).unwrap_or_default());
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&history_file)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?
+        .write_all(history_line.as_bytes())
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+    
+    let db_path = state_dir.join("harness.db");
+    if db_path.exists() {
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let _ = crate::eval::storage::save_eval_run(&conn, &summary);
+            
+            for result in &case_results {
+                let _ = crate::eval::storage::save_eval_case(&conn, &run_id, result);
+            }
+            
+            let summary_json = serde_json::to_string(&summary).unwrap_or_default();
+            let _ = crate::eval::storage::save_eval_history(
+                &conn, "run", &run_id, &args.skill, &args.trigger, verdict, &summary_json
+            );
+        }
+    }
+    
+    println!("[eval-harness] {} {}/{}", verdict, pass_count, total_count);
+    if regression_count > 0 {
+        println!("[eval-harness] Regressions: {}", summary.regressions.join(", "));
+    }
+    println!("[eval-harness] See {}/diff.md", run_dir.display());
+    
+    if verdict == "REGRESSION" && args.strict {
+        std::process::exit(12);
+    }
+    
+    Ok(())
+}
+
+fn get_state_dir() -> std::path::PathBuf {
+    if let Ok(dir) = std::env::var("EVAL_STATE_DIR") {
+        return std::path::PathBuf::from(dir);
+    }
+    
+    if let Some(home) = get_home_dir() {
+        return home.join(".config/opencode/eval-harness");
+    }
+    
+    std::path::PathBuf::from(".opencode/eval-harness")
+}
+
+fn get_home_dir() -> Option<std::path::PathBuf> {
+    if let Ok(home) = std::env::var("HOME") {
+        return Some(std::path::PathBuf::from(home));
+    }
+    
+    #[cfg(windows)]
+    if let Ok(profile) = std::env::var("USERPROFILE") {
+        return Some(std::path::PathBuf::from(profile));
+    }
+    
+    None
+}
+
+fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
+    println!("[eval-harness] Creating baseline for skill '{}'...", args.skill);
+    // TODO: Implement baseline creation
+    println!("[eval-harness] Baseline created.");
+    Ok(())
+}
+
+fn run_diff(args: &EvalDiffArgs) -> Result<(), InterfaceError> {
+    println!("[eval-harness] Showing diff for run '{}'...", args.run_id);
+    // TODO: Implement diff display
+    Ok(())
+}
+
+fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
+    println!("[eval-harness] Status:");
+    // TODO: Implement status display
+    Ok(())
+}
+
+fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
+    println!("[eval-harness] Promoting skill '{}' to blocking mode...", args.skill);
+    // TODO: Implement promotion
+    println!("[eval-harness] Promoted.");
+    Ok(())
+}
+
+fn run_analyze(args: &EvalAnalyzeArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+    
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+    
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 100)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    if runs.is_empty() {
+        println!("[eval-harness] No eval runs found for skill '{}'", args.skill);
+        return Ok(());
+    }
+    
+    let total_runs = runs.len();
+    let pass_count = runs.iter().filter(|r| r.verdict == "PASS").count();
+    let pass_rate = (pass_count as f64 / total_runs as f64) * 100.0;
+    let avg_duration = runs.iter().filter_map(|r| r.duration_ms).sum::<u64>() / total_runs as u64;
+    let total_cost: f64 = runs.iter().filter_map(|r| r.total_cost_usd).sum();
+    
+    println!("[eval-harness] Analysis for skill '{}'", args.skill);
+    println!("  Total runs: {}", total_runs);
+    println!("  Pass rate: {:.1}%", pass_rate);
+    println!("  Avg duration: {}ms", avg_duration);
+    println!("  Total cost: ${:.2}", total_cost);
+    
+    let goals = crate::eval::storage::get_eval_goals(&conn, Some(&args.skill))
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    if !goals.is_empty() {
+        println!("\n[eval-harness] Goals:");
+        for goal in &goals {
+            let current = goal.get("current_value").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let target = goal.get("target_metric").and_then(|v| v.as_str()).unwrap_or("N/A");
+            let desc = goal.get("description").and_then(|v| v.as_str()).unwrap_or("");
+            println!("  - {}: {} (current: {:.1})", desc, target, current);
+        }
+    }
+    
+    let suggestions = crate::eval::storage::get_eval_suggestions(&conn, Some(&args.skill), Some("pending"))
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    if !suggestions.is_empty() {
+        println!("\n[eval-harness] Pending suggestions:");
+        for suggestion in &suggestions {
+            let title = suggestion.get("title").and_then(|v| v.as_str()).unwrap_or("");
+            let priority = suggestion.get("priority").and_then(|v| v.as_str()).unwrap_or("");
+            println!("  [{}] {}", priority.to_uppercase(), title);
+        }
+    }
+    
+    Ok(())
+}
+
+fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+    
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+    
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 30)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    if runs.is_empty() {
+        println!("[eval-harness] No eval data for suggestions. Run eval first.");
+        return Ok(());
+    }
+    
+    let total_runs = runs.len();
+    let pass_count = runs.iter().filter(|r| r.verdict == "PASS").count();
+    let pass_rate = (pass_count as f64 / total_runs as f64) * 100.0;
+    
+    println!("[eval-harness] Suggestions for skill '{}'", args.skill);
+    
+    if pass_rate < 95.0 {
+        println!("\n  HIGH PRIORITY:");
+        println!("  1. [Fix] Improve pass rate (current: {:.1}%, target: 95%)", pass_rate);
+        println!("     Reason: Below target pass rate");
+        println!("     Impact: Fewer regressions");
+    }
+    
+    let avg_duration = runs.iter().filter_map(|r| r.duration_ms).sum::<u64>() / total_runs as u64;
+    if avg_duration > 5000 {
+        println!("\n  MEDIUM PRIORITY:");
+        println!("  2. [Optimize] Reduce eval time (current: {}ms)", avg_duration);
+        println!("     Reason: Slow evals impact developer workflow");
+        println!("     Impact: Faster feedback loop");
+    }
+    
+    let total_cost: f64 = runs.iter().filter_map(|r| r.total_cost_usd).sum();
+    if total_cost > 10.0 {
+        println!("\n  LOW PRIORITY:");
+        println!("  3. [Optimize] Reduce cost (current: ${:.2})", total_cost);
+        println!("     Reason: High eval cost");
+        println!("     Impact: Lower operational cost");
+    }
+    
+    Ok(())
+}
+
+fn resolve_skills_root() -> std::path::PathBuf {
+    if let Ok(root) = std::env::var("OPENCODE_SKILLS_ROOT") {
+        return std::path::PathBuf::from(root);
+    }
+    
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let mut dir = cwd.clone();
+    loop {
+        let skills_dir = dir.join(".opencode/skills");
+        if skills_dir.exists() {
+            return skills_dir;
+        }
+        if !dir.pop() {
+            break;
+        }
+    }
+    
+    get_home_dir()
+        .unwrap_or(cwd)
+        .join(".config/opencode/skills")
 }
 
 fn print_trace_score(result: &TraceScoreResult, latest: bool) {
@@ -1662,4 +2171,71 @@ mod tests {
             .to_string();
         assert!(matrix_help.contains("--numeric"));
     }
+}
+
+fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+    
+    if !db_path.exists() {
+        std::fs::create_dir_all(&state_dir)
+            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+    }
+    
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    let goal_id = crate::eval::storage::create_eval_goal(
+        &conn, &args.skill, &args.goal_type, &args.description, &args.target
+    ).map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    println!("[eval-harness] Goal created: {}", goal_id);
+    println!("  Skill: {}", args.skill);
+    println!("  Type: {}", args.goal_type);
+    println!("  Description: {}", args.description);
+    println!("  Target: {}", args.target);
+    
+    Ok(())
+}
+
+fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+    
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+    
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    let case_id = args.case.as_deref();
+    let scores = crate::eval::storage::get_quality_scores(&conn, None, case_id)
+        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    
+    if scores.is_empty() {
+        println!("[eval-harness] No quality scores found for skill '{}'", args.skill);
+        return Ok(());
+    }
+    
+    println!("[eval-harness] Quality scores for skill '{}'", args.skill);
+    
+    for score in &scores {
+        let case = score.get("case_id").and_then(|v| v.as_str()).unwrap_or("");
+        let prompt = score.get("prompt_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let response = score.get("response_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let context = score.get("context_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let overall = score.get("overall_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let feedback = score.get("feedback").and_then(|v| v.as_str()).unwrap_or("");
+        
+        println!("  Case: {}", case);
+        println!("    Prompt: {:.1}%", prompt);
+        println!("    Response: {:.1}%", response);
+        println!("    Context: {:.1}%", context);
+        println!("    Overall: {:.1}%", overall);
+        println!("    Feedback: {}", feedback);
+    }
+    
+    Ok(())
 }

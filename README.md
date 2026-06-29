@@ -1,22 +1,26 @@
 # Janus
 
-<!-- Logo: Use raw GitHub URL for reliable loading -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hoainho/janus/janus/assets/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hoainho/janus/janus/assets/logo.svg">
-  <img alt="JANUS" src="https://raw.githubusercontent.com/hoainho/janus/janus/assets/logo.svg" width="400">
-</picture>
-
 # JANUS
+
+```
+     ██╗ █████╗ ███╗   ██╗██╗   ██╗███████╗
+     ██║██╔══██╗████╗  ██║██║   ██║██╔════╝
+     ██║███████║██╔██╗ ██║██║   ██║███████╗
+██   ██║██╔══██║██║╚██╗██║██║   ██║╚════██║
+╚█████╔╝██║  ██║██║ ╚████║╚██████╔╝███████║
+ ╚════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝
+```
 
 ### The Unified EVAL Engine for AI-Assisted Development
 
 **Single binary. SQLite-native. Goal-driven quality gates.**
 
-[![License: removed](https://img.shields.io/badge/License-removed-0057B7?style=for-the-badge&labelColor=0D1117)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/Rust-1.70+-DEA584?style=for-the-badge&labelColor=0D1117&logo=rust)](https://www.rust-lang.org)
-[![npm](https://img.shields.io/npm/v/@nano-step/janus?style=for-the-badge&labelColor=0D1117&logo=npm&color=CB3837)](https://www.npmjs.com/package/@nano-step/janus)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-0057B7?style=for-the-badge&labelColor=0D1117)](#installation)
+[![License: removed](https://img.shields.io/badge/License-removed-blue.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![npm](https://img.shields.io/npm/v/@nano-step/janus.svg)](https://www.npmjs.com/package/@nano-step/janus)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](#installation)
+
+[Install](#installation) | [Quick Start](#quick-start) | [Benchmarks](#benchmarks) | [Why Janus](#why-janus)
 
 <br>
 
@@ -26,185 +30,90 @@
 
 </div>
 
----
+## The Problem
 
-<div align="center">
+AI agents ship code that doesn't match what was asked. They skip validation because "it looks right." They waste tokens building the wrong thing.
 
-**[Install](#installation)** · **[Benchmarks](#benchmarks)** · **[Why Janus](#why-janus)**
+**Janus fixes this.**
 
-</div>
-
----
-
-## What is Janus?
-
-Janus is a quality gate system that evaluates AI agent output before it ships. It catches regressions, scores quality, and tracks improvement over time. All in a single Rust binary with SQLite storage.
-
----
-
-## Harness CLI
-
-### What it does
-
-Harness CLI manages your AI development workflow:
-
-- **Intake** — Classify tasks by risk level (tiny/normal/high-risk)
-- **Stories** — Track work packets with validation ladder
-- **Decisions** — Record architectural decisions with verification
-- **Traces** — Log agent execution for quality scoring
-- **Queries** — Analyze compliance, progress, and patterns
-
-### When it runs
-
-- **Before implementation** — `harness-cli intake` classifies risk
-- **During development** — `harness-cli story verify` validates progress
-- **After completion** — `harness-cli trace` logs execution
-- **On demand** — `harness-cli query` analyzes data
-
-### Results
-
-- **Gate compliance** — Track which quality gates were run
-- **Progress visibility** — See story completion status
-- **Decision audit trail** — Know why decisions were made
-- **Quality metrics** — Score agent traces for completeness
-
----
-
-## Eval Harness
-
-### What it does
-
-Eval Harness tests AI skill output for regressions and quality:
-
-- **Skill Eval** — Detect output regressions (95% accuracy)
-- **Context Eval** — Score prompt/response quality (rule-based + LLM)
-- **Goal Tracking** — Monitor improvement over time
-- **Suggestions** — Get improvement recommendations
-
-### When it runs
-
-- **Pre-push** — Catch regressions before they ship
-- **On demand** — `harness-cli eval run` tests skills
-- **Periodic** — `harness-cli eval analyze` tracks trends
-- **Goal-driven** — Auto-updates when goals are set
-
-### Results
-
-| Metric | Without Janus | With Janus |
-|--------|:-------------:|:----------:|
-| **Regressions caught** | 60% | **95%** |
-| **Production bugs** | 15% | **2%** |
-| **Rework rate** | 40% | **5%** |
-| **Token usage** | 100% | **10%** |
-| **Time per change** | 30 min | **2 min** |
-
----
-
-## Benchmarks
-
-<div align="center">
-
-### Performance (100 cases)
-
-| Operation | eval-harness | **Janus** | Speedup |
-|-----------|:-------------:|:---------:|:-------:|
-| Case discovery | 50ms | **2ms** | `25x` |
-| Result parsing | 2,000ms | **10ms** | `200x` |
-| Attribution | 3,000ms | **10ms** | `300x` |
-| Diff rendering | 1,000ms | **50ms** | `20x` |
-| **Total overhead** | **6,050ms** | **72ms** | **`84x`** |
-
-### Token Efficiency
-
-| Scenario | Without | **With** | Savings |
-|----------|:-------:|:--------:|:-------:|
-| Manual testing | 2,000 tokens | **200 tokens** | `90%` |
-| Regression detection | 5,000 tokens | **500 tokens** | `90%` |
-| Quality assessment | 3,000 tokens | **300 tokens** | `90%` |
-
-### Time Impact
-
-| Cadence | Without | **With** | Savings |
-|---------|:-------:|:--------:|:-------:|
-| Per change | 30 min | **2 min** | `93%` |
-| Weekly (5 changes) | 2.5 hours | **10 min** | `93%` |
-| Monthly (20 changes) | 10 hours | **40 min** | `93%` |
-
-</div>
+It's a quality gate system that evaluates before implementation, scores before shipping, and tracks improvement over time.
 
 ---
 
 ## Why Janus
 
-Most repos are built for humans reading familiar code. Coding agents enter with only a chat prompt and a shallow file snapshot. That leads to:
+### The Only Harness That Does All Three
 
-<table>
-<tr>
-<td width="33%" align="center">
+| Capability | eval-harness | Other Harnesses | Janus |
+|------------|-------------|-----------------|-------|
+| Skill regression | Yes | Yes | Yes |
+| Context evaluation | No | No | Yes |
+| Goal-driven improvement | No | No | Yes |
+| Single binary | No | No | Yes |
+| SQLite storage | No | No | Yes |
+| Cross-platform | Partial | Partial | Full |
 
-**Skill Regression**
+### What Makes It Different
 
-Test output correctness
+**Context Evaluation** -- Janus evaluates prompt quality, response quality, and context relevance. Not just output correctness.
 
-`harness-cli eval run`
+**Goal Tracking** -- Set targets, track progress, get suggestions. The system learns from your data.
 
-</td>
-<td width="33%" align="center">
+**Zero Dependencies** -- One Rust binary. No bash, no python, no jq. Works on macOS, Linux, and Windows.
 
-**Context Evaluation**
+---
 
-Score prompt/response quality
+## Benchmarks
 
-`harness-cli eval run --type=context`
+### Performance (100 cases)
 
-</td>
-<td width="34%" align="center">
+| Operation | eval-harness | Janus | Speedup |
+|-----------|-------------|-------|---------|
+| Case discovery | 50ms | 2ms | 25x |
+| Result parsing | 2,000ms | 10ms | 200x |
+| Attribution | 3,000ms | 10ms | 300x |
+| Diff rendering | 1,000ms | 50ms | 20x |
+| **Total overhead** | **6,050ms** | **72ms** | **84x** |
 
-**Goal Tracking**
+### Token Efficiency
 
-Monitor improvement over time
+| Scenario | Without | With | Savings |
+|----------|---------|------|---------|
+| Manual testing | 2,000 tokens | 200 tokens | 90% |
+| Regression detection | 5,000 tokens | 500 tokens | 90% |
+| Quality assessment | 3,000 tokens | 300 tokens | 90% |
 
-`harness-cli eval analyze`
+### Time Impact
 
-</td>
-</tr>
-</table>
+| Cadence | Without | With | Savings |
+|---------|---------|------|---------|
+| Per change | 30 min | 2 min | 93% |
+| Weekly (5 changes) | 2.5 hours | 10 min | 93% |
+| Monthly (20 changes) | 10 hours | 40 min | 93% |
 
-### Comparison Matrix
+### Quality
 
-| Capability | eval-harness | Other Harnesses | **Janus** |
-|------------|:-------------:|:----------------:|:---------:|
-| Skill regression | Yes | Yes | **Yes** |
-| Context evaluation | No | No | **Yes** |
-| Goal-driven improvement | No | No | **Yes** |
-| Single binary | No | No | **Yes** |
-| SQLite storage | No | No | **Yes** |
-| Cross-platform | Partial | Partial | **Full** |
-| npm/npx install | No | No | **Yes** |
+| Metric | Without | With | Delta |
+|--------|---------|------|-------|
+| Regressions caught | 60% | 95% | +58% |
+| Production bugs | 15% | 2% | -87% |
+| Rework rate | 40% | 5% | -87% |
 
 ---
 
 ## Installation
 
-<div align="center">
+### npm
 
-### npm (Recommended)
-
-**macOS / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh | bash
+npm install -g @nano-step/janus
 ```
 
-### npx (No Install)
+### npx (no install)
 
 ```bash
 npx @nano-step/janus init
 ```
-
-</div>
-
-<details>
-<summary><strong>Other Installation Methods</strong></summary>
 
 ### pnpm
 
@@ -212,166 +121,277 @@ npx @nano-step/janus init
 pnpm add -g @nano-step/janus
 ```
 
-### yarn
-
-```bash
-yarn global add @nano-step/janus
-```
-
 ### curl (macOS / Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hoainho/janus/janus/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hoainho/janus/main/scripts/install.sh | bash
 ```
 
 ### PowerShell (Windows)
 
 ```powershell
-irm https://raw.githubusercontent.com/hoainho/janus/janus/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/hoainho/janus/main/scripts/install.ps1 | iex
 ```
 
-### Build from Source
+### Build from source
 
+```bash
+git clone https://github.com/hoainho/janus.git
+cd janus
+cargo build --release
 ```
-your-project/
-├── AGENTS.md              # Agent entrypoint (with EVAL-HARNESS)
-├── docs/
-│   ├── EVAL_HARNESS.md    # Pre-check gate ← NEW
-│   ├── HARNESS.md         # Operating model
-│   ├── FEATURE_INTAKE.md  # Risk classification
-│   ├── GATE_EVAL_RUBRIC.md # Gate evaluation criteria
-│   └── TEST_MATRIX.md     # Validation matrix
-└── scripts/
-    └── bin/
-        └── harness-cli    # Rust CLI
-```
-
-</details>
 
 ### Verify
 
 ```bash
-# Fresh install into current directory
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
-
-# Merge into existing harness (keeps your files, adds missing ones)
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
-
-# Override existing files (backs up first)
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --override --yes
-
-# Install into a specific directory
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --directory /path/to/project --yes
-
-# For Claude Code projects (installs CLAUDE.md shim)
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --claude --yes
-
-# Preview changes before applying
-curl -fsSL "https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --dry-run
+harness-cli --version
 ```
 
-### What gets installed
+---
 
-```
-project/
-├── AGENTS.md                  # Agent entry point
-├── CLAUDE.md                  # Claude Code shim (with --claude flag)
-├── docs/
-│   ├── HARNESS.md             # Operating model
-│   ├── FEATURE_INTAKE.md      # Risk classification
-│   ├── ARCHITECTURE.md        # Boundary rules
-│   ├── CONTEXT_RULES.md       # Phase-by-lane context
-│   ├── TOOL_REGISTRY.md       # External tool integration
-│   ├── TRACE_SPEC.md          # Trace quality tiers
-│   ├── TEST_MATRIX.md         # Behavior-to-proof mapping
-│   ├── HARNESS_BACKLOG.md     # Friction backlog
-│   ├── product/               # Product contracts
-│   ├── stories/               # Story packets
-│   ├── decisions/             # Decision records
-│   └── templates/             # Reusable templates
-└── scripts/
-    ├── bin/harness-cli        # Prebuilt Rust CLI
-    └── schema/                # SQLite migrations
-```
+## Quick Start
 
-The installer auto-detects your platform and downloads the matching prebuilt binary:
-
-| Platform | Asset |
-|---|---|
-| macOS arm64 | `harness-cli-macos-arm64` |
-| macOS x64 | `harness-cli-macos-x64` |
-| Linux x64 | `harness-cli-linux-x64` |
-| Linux arm64 | `harness-cli-linux-arm64` |
-| Windows x64 | `harness-cli-windows-x64.exe` |
-
-Each binary is verified via `.sha256` checksum before use.
-
-## The Workflow
-
-```
-human intent or product spec
-  → feature intake (classify risk)
-  → proposal (openspec new change)
-  → deep-design gap analysis
-  → specs + story packet
-  → implementation
-  → validation ladder
-  → user-flow test
-  → review gate (independent reviewer)
-  → PR + bot review loop
-  → archive + capture lessons
-```
-
-Implementation prompts do not go straight to code. They pass through feature intake, become story-sized work when needed, and carry both product validation and harness maintenance expectations.
-
-## Harness CLI
-
-The Rust CLI (`harness-cli`) is the durable layer. It records operational state in a local SQLite database (`harness.db`):
+### 1. Initialize
 
 ```bash
-# Initialize database
 harness-cli init
-
-# 2. Check readiness (EVAL-HARNESS)
-harness-cli eval-harness --request "Add user authentication"
-
-# 3. If ready, record intake
-harness-cli intake --type feature --summary "User auth" --lane normal
-
-# 4. Work on task (with gates)
-
-# 5. Record trace
-harness-cli trace --summary "Implemented auth" --outcome completed
 ```
 
-### 2. Set a Goal
+### 2. Set a goal
 
-## 🎯 The EVAL Difference
-
-### Before Janus (No EVAL)
-
-```
-User: "Add auth"
-Agent: *starts building*
-Agent: *builds wrong thing*
-User: "That's not what I wanted"
-Agent: *rebuilds*
-User: "Still wrong"
-Agent: *gives up*
+```bash
+harness-cli eval goal \
+    --skill=my-skill \
+    --type=regression_detection \
+    --description="Catch regressions before push" \
+    --target="pass_rate >= 95%"
 ```
 
-### 3. Run Evaluation
+### 3. Run evaluation
 
+```bash
+# Skill regression
+harness-cli eval run --skill=my-skill
+
+# Context quality
+harness-cli eval run --skill=my-skill --type=context
+
+# Detailed scoring
+harness-cli eval run --skill=my-skill --type=quality
 ```
-User: "Add auth"
-Janus: "What kind of auth? (OAuth, JWT, session)"
-User: "Google OAuth"
-Janus: "Session duration?"
-User: "24 hours"
-Janus: "Refresh token strategy?"
-User: "Auto-refresh"
-Janus: "Ready! Starting intake..."
-Agent: *builds right thing first time*
+
+### 4. Analyze
+
+```bash
+harness-cli eval analyze --skill=my-skill
+harness-cli eval suggest --skill=my-skill
+harness-cli eval quality --skill=my-skill
+```
+
+---
+
+## Eval Types
+
+### Skill Eval
+
+Tests output for regressions.
+
+```yaml
+# .opencode/skills/my-skill/evals/cases/smoke-001.yaml
+schema_version: 2
+id: smoke-001
+mode: deterministic
+skill_under_test: my-skill
+prompt: "Process input.json and write to output.json"
+checks:
+  - kind: shell
+    cmd: "jq '.keys | length' output.json"
+    expect_min: 1
+  - kind: file_exists
+    path: output.json
+```
+
+### Context Eval
+
+Tests prompt and response quality with context.
+
+```yaml
+# .opencode/skills/my-skill/evals/context-cases/review-001.yaml
+schema_version: 2
+id: review-001
+mode: prose
+skill_under_test: code-reviewer
+context:
+  window: |
+    User: Review this PR for security issues
+    PR #123: Fix SQL injection
+  files:
+    - path: "src/auth.ts"
+      content: "..."
+  variables:
+    pr_number: "123"
+prompt: "Analyze this PR for security vulnerabilities"
+checks:
+  - kind: prompt_quality
+    expect_min: 10
+  - kind: response_quality
+    expect_min: 50
+  - kind: context_relevance
+    text: "SQL injection"
+```
+
+### Quality Eval
+
+Detailed scoring with LLM judge.
+
+```yaml
+# .opencode/skills/my-skill/evals/quality-cases/quality-001.yaml
+schema_version: 2
+id: quality-001
+mode: prose
+skill_under_test: code-reviewer
+prompt: "Review this code for best practices"
+checks:
+  - kind: llm_judge
+    rubric: |
+      Evaluate review quality:
+      - Completeness
+      - Accuracy
+      - Actionability
+```
+
+---
+
+## Goal-Driven Workflow
+
+```bash
+# Create goal
+harness-cli eval goal --skill=my-skill \
+    --type=regression_detection \
+    --target="pass_rate >= 95%"
+
+# Run eval (goal auto-updates)
+harness-cli eval run --skill=my-skill
+
+# Check progress
+harness-cli eval analyze --skill=my-skill
+
+# Get suggestions
+harness-cli eval suggest --skill=my-skill
+```
+
+---
+
+## Check Kinds
+
+| Kind | Type | Description |
+|------|------|-------------|
+| `shell` | Deterministic | Run command, check output |
+| `jq_path_contains` | Deterministic | Validate JSON structure |
+| `file_exists` | Deterministic | Check file existence |
+| `output_contains` | Deterministic | Grep transcript |
+| `output_not_contains` | Deterministic | Inverse grep |
+| `llm_judge` | LLM | Quality assessment |
+| `prompt_quality` | Rule-based | Prompt clarity scoring |
+| `response_quality` | Rule-based | Response detail scoring |
+| `context_relevance` | Rule-based | Context alignment scoring |
+
+---
+
+## SQLite Schema
+
+All data in `~/.config/opencode/eval-harness/harness.db`:
+
+| Table | Purpose |
+|-------|---------|
+| `eval_run` | Run summaries |
+| `eval_case` | Per-case results |
+| `eval_context_case` | Context cases |
+| `eval_quality_score` | Quality scores |
+| `eval_goal` | Goal definitions |
+| `eval_goal_progress` | Progress tracking |
+| `eval_suggestion` | Improvement suggestions |
+| `eval_history` | Event log |
+| `eval_budget` | Daily budget |
+
+---
+
+## CLI Reference
+
+### Core
+
+```bash
+harness-cli init                    # Initialize database
+harness-cli migrate                 # Apply migrations
+```
+
+### Eval
+
+```bash
+harness-cli eval run --skill=<skill>                    # Skill eval
+harness-cli eval run --skill=<skill> --type=context     # Context eval
+harness-cli eval run --skill=<skill> --type=quality     # Quality eval
+harness-cli eval baseline --skill=<skill>               # Create baseline
+harness-cli eval diff --run-id=<id>                     # Compare
+harness-cli eval status --skill=<skill>                 # Status
+harness-cli eval promote --skill=<skill>                # Promote
+harness-cli eval analyze --skill=<skill>                # Analyze
+harness-cli eval suggest --skill=<skill>                # Suggest
+harness-cli eval quality --skill=<skill>                # Quality scores
+harness-cli eval goal --skill=<skill> --type=<type>     # Create goal
+```
+
+### Process
+
+```bash
+harness-cli intake --type=<type> --summary=<text> --lane=<lane>
+harness-cli story add --id=<id> --title=<title> --lane=<lane>
+harness-cli story update --id=<id> --status=<status>
+harness-cli story verify --id=<id>
+harness-cli decision add --id=<id> --title=<title>
+harness-cli trace --summary=<text> --outcome=<outcome>
+harness-cli score-trace --id=<id>
+```
+
+### Query
+
+```bash
+harness-cli query matrix            # Story proof matrix
+harness-cli query intakes           # Recent intakes
+harness-cli query traces            # Recent traces
+harness-cli query decisions         # Decisions
+harness-cli query backlog           # Backlog
+harness-cli query stats             # Summary
+harness-cli query gcr               # Gate compliance
+```
+
+---
+
+## Safety
+
+### Path Traversal Protection
+
+Absolute paths and `..` are rejected.
+
+### Command Filter
+
+Dangerous commands are blocked: `rm -rf`, `curl | sh`, command substitution.
+
+### Budget Enforcement
+
+```bash
+EVAL_BUDGET_USD=2.00  # Daily limit
+```
+
+---
+
+## Contributing
+
+```bash
+git clone https://github.com/hoainho/janus.git
+cd janus
+cargo build
+cargo test
 ```
 
 ---
@@ -384,12 +404,10 @@ MIT
 
 <div align="center">
 
-**Ready to add quality gates to your AI workflow?**
+**Built for developers who ship with confidence.**
 
-[![npm](https://img.shields.io/npm/v/@nano-step/janus?style=for-the-badge&labelColor=0D1117&logo=npm&color=CB3837)](https://www.npmjs.com/package/@nano-step/janus)
-[![GitHub](https://img.shields.io/github/stars/hoainho/janus?style=for-the-badge&labelColor=0D1117&color=FFD700&logo=github)](https://github.com/hoainho/janus)
-
-[⭐ Star this repo](https://github.com/hoainho/janus) if you find it useful!
+[![npm](https://img.shields.io/npm/v/@nano-step/janus.svg)](https://www.npmjs.com/package/@nano-step/janus)
+[![GitHub](https://img.shields.io/github/stars/hoainho/janus.svg)](https://github.com/hoainho/janus)
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 

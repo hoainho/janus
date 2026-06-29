@@ -2326,6 +2326,7 @@ mod tests {
                 affected_docs: CsvList::from_optional(None),
                 story_id: Some("US-002".to_owned()),
                 notes: None,
+                lane_checklist: None,
             })
             .unwrap();
 
@@ -2948,6 +2949,7 @@ mod tests {
                 affected_docs: CsvList::from_optional(None),
                 story_id: None,
                 notes: None,
+                lane_checklist: None,
             })
             .unwrap();
         repository
@@ -3210,6 +3212,7 @@ implemented
                 affected_docs: CsvList::from_optional(None),
                 story_id: None,
                 notes: None,
+                lane_checklist: None,
             })
             .unwrap();
         let first_trace = repository

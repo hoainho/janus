@@ -1,0 +1,35 @@
+{
+  "name": "@nano-step/janus",
+  "version": "0.1.10",
+  "description": "The Unified EVAL Engine for AI-Assisted Development",
+  "keywords": ["eval", "harness", "ai", "quality", "regression", "testing"],
+  "author": "Hoài Nhớ <nhoxtvt@gmail.com>",
+  "homepage": "https://github.com/hoainho/janus",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hoainho/janus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hoainho/janus/issues"
+  },
+  "bin": {
+    "harness-cli": "./bin/harness-cli"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "optionalDependencies": {
+    "@nano-step/janus-darwin-arm64": "0.1.10",
+    "@nano-step/janus-darwin-x64": "0.1.10",
+    "@nano-step/janus-linux-x64": "0.1.10",
+    "@nano-step/janus-win32-x64": "0.1.10"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md"
+  ]
+}

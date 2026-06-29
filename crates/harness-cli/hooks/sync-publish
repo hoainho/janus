@@ -1,0 +1,44 @@
+#!/bin/sh
+# eval-harness sync-publish hook for harness-cli
+# Runs eval harness before publishing a skill
+
+set -e
+
+SKILL="${1:-}"
+if [ -z "$SKILL" ]; then
+    echo "[eval-harness] Usage: sync-publish.sh <skill-name>"
+    exit 1
+fi
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+SKILLS_DIR="$REPO_ROOT/.opencode/skills"
+SKILL_DIR="$SKILLS_DIR/$SKILL"
+EVALS_DIR="$SKILL_DIR/evals"
+
+if [ ! -d "$EVALS_DIR" ]; then
+    echo "[eval-harness] No evals for skill '$SKILL' — skipping"
+    exit 0
+fi
+
+BYPASS="${EVAL_BYPASS:-0}"
+if [ "$BYPASS" = "1" ]; then
+    echo "[eval-harness] EVAL_BYPASS=1 — skipping eval for $SKILL"
+    exit 0
+fi
+
+echo "[eval-harness] sync-publish: Running eval for skill: $SKILL"
+
+if harness-cli eval run --skill="$SKILL" --trigger=sync-publish --mode=full 2>&1; then
+    echo "[eval-harness] ✓ $SKILL passed — publish allowed"
+    exit 0
+else
+    exit_code=$?
+    if [ $exit_code -eq 12 ]; then
+        echo "[eval-harness] ✗ $SKILL REGRESSION detected — blocking publish"
+        exit 12
+    elif [ $exit_code -eq 13 ]; then
+        echo "[eval-harness] Harness error for $SKILL (exit 13)"
+        exit 13
+    fi
+    exit 1
+fi
