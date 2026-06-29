@@ -1,0 +1,20 @@
+# Labels for issue labeler
+bug:
+  - '(BUG|bug|Bug)'
+  - '(fix|Fix|FIX)'
+  - '(error|Error|ERROR)'
+
+enhancement:
+  - '(FEATURE|feature|Feature)'
+  - '(add|Add|ADD)'
+  - '(improve|Improve|IMPROVE)'
+
+documentation:
+  - '(DOCS|docs|Docs)'
+  - '(README|readme)'
+  - '(documentation|Documentation)'
+
+question:
+  - '(QUESTION|question|Question)'
+  - '(how|How|HOW)'
+  - '(why|Why|WHY)'

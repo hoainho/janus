@@ -1,12 +1,16 @@
-name: Build and Release
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
+    name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -14,69 +18,100 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             platform: darwin-arm64
+            ext: ''
           - os: macos-latest
             target: x86_64-apple-darwin
             platform: darwin-x64
+            ext: ''
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             platform: linux-x64
+            ext: ''
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             platform: win32-x64
-    
+            ext: '.exe'
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      
+
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
         working-directory: crates/harness-cli
-      
-      - name: Create platform package
-        run: |
-          mkdir -p npm/platforms/${{ matrix.platform }}/bin
-          cp target/${{ matrix.target }}/release/harness-cli* npm/platforms/${{ matrix.platform }}/bin/
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}
-          path: npm/platforms/${{ matrix.platform }}/
+          name: harness-cli-${{ matrix.platform }}
+          path: crates/harness-cli/target/${{ matrix.target }}/release/harness-cli${{ matrix.ext }}
 
-  publish:
+  release:
+    name: Create Release
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Download all artifacts
+
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: npm/platforms/
-      
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/harness-cli-darwin-arm64/harness-cli
+            artifacts/harness-cli-darwin-x64/harness-cli
+            artifacts/harness-cli-linux-x64/harness-cli
+            artifacts/harness-cli-win32-x64/harness-cli.exe
+
+  publish-npm:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-      
+
+      - name: Prepare platform packages
+        run: |
+          for platform in darwin-arm64 darwin-x64 linux-x64 win32-x64; do
+            mkdir -p npm/platforms/$platform/bin
+            cp artifacts/harness-cli-$platform/harness-cli* npm/platforms/$platform/bin/
+          done
+
       - name: Publish platform packages
         run: |
           for platform in darwin-arm64 darwin-x64 linux-x64 win32-x64; do
             cd npm/platforms/$platform
+            npm version ${{ github.ref_name }} --no-git-tag-version
             npm publish --access public
             cd ../..
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
+
       - name: Publish main package
         run: |
           cd npm
+          npm version ${{ github.ref_name }} --no-git-tag-version
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

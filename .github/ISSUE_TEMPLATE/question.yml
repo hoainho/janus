@@ -1,0 +1,24 @@
+---
+name: Question
+about: Ask a question about Janus
+title: "[QUESTION] "
+labels: question
+assignees: ''
+---
+
+## Question
+
+What's your question?
+
+## Context
+
+Provide context about what you're trying to achieve.
+
+## What I've Tried
+
+What have you tried so far?
+
+## Environment
+
+- OS: [e.g., macOS, Linux, Windows]
+- Janus version: [e.g., v0.1.10]
