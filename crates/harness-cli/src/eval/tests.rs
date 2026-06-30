@@ -64,7 +64,7 @@ mod tests {
     fn test_attribution_skill_changed() {
         let attribution = compute_attribution(
             "sha-new", "sha-old", "fixture-sha", "fixture-sha",
-            "model", "model", 1, true
+            "model", "model", 1, true, &[]
         );
         assert_eq!(attribution.class, AttributionClass::SkillChanged);
         assert!(!attribution.flaky);
@@ -74,7 +74,7 @@ mod tests {
     fn test_attribution_fixture_stale() {
         let attribution = compute_attribution(
             "sha", "sha", "fixture-new", "fixture-old",
-            "model", "model", 1, true
+            "model", "model", 1, true, &[]
         );
         assert_eq!(attribution.class, AttributionClass::FixtureStale);
     }
@@ -83,7 +83,7 @@ mod tests {
     fn test_attribution_model_changed() {
         let attribution = compute_attribution(
             "sha", "sha", "fixture", "fixture",
-            "model-new", "model-old", 1, true
+            "model-new", "model-old", 1, true, &[]
         );
         assert_eq!(attribution.class, AttributionClass::ModelChanged);
     }
@@ -92,7 +92,7 @@ mod tests {
     fn test_attribution_unknown_drift() {
         let attribution = compute_attribution(
             "sha", "sha", "fixture", "fixture",
-            "model", "model", 1, true
+            "model", "model", 1, true, &[]
         );
         assert_eq!(attribution.class, AttributionClass::UnknownDrift);
     }
@@ -101,9 +101,41 @@ mod tests {
     fn test_attribution_flaky() {
         let attribution = compute_attribution(
             "sha", "sha", "fixture", "fixture",
-            "model", "model", 3, false
+            "model", "model", 3, false, &[]
         );
         assert!(attribution.flaky);
+    }
+
+    #[test]
+    fn test_attribution_cross_skill_change() {
+        let other_skills = vec![
+            ("other-skill".to_string(), "sha-new".to_string(), "sha-old".to_string()),
+        ];
+        let attribution = compute_attribution(
+            "sha", "sha", "fixture", "fixture",
+            "model", "model", 1, true, &other_skills
+        );
+        assert_eq!(attribution.class, AttributionClass::CrossSkillChange);
+        assert_eq!(attribution.suspected_skills.as_ref().unwrap(), &["other-skill".to_string()]);
+    }
+
+    #[test]
+    fn test_normalize_text_whitespace() {
+        let modes = vec!["whitespace".to_string()];
+        assert_eq!(normalize_text("  hello   world  ", &modes), "hello world");
+        assert_eq!(normalize_text("a\n\tb", &modes), "a b");
+    }
+
+    #[test]
+    fn test_normalize_text_case() {
+        let modes = vec!["case".to_string()];
+        assert_eq!(normalize_text("Hello World", &modes), "hello world");
+    }
+
+    #[test]
+    fn test_normalize_text_combined() {
+        let modes = vec!["whitespace".to_string(), "case".to_string()];
+        assert_eq!(normalize_text("  HELLO   WORLD  ", &modes), "hello world");
     }
 
     #[test]

@@ -2,6 +2,23 @@ use std::path::Path;
 use std::process::Command;
 use serde::{Deserialize, Serialize};
 
+pub(crate) fn normalize_text(text: &str, modes: &[String]) -> String {
+    let mut result = text.to_string();
+    for mode in modes {
+        match mode.as_str() {
+            "whitespace" => {
+                result = result.split_whitespace().collect::<Vec<&str>>().join(" ");
+                result = result.trim().to_string();
+            }
+            "case" => {
+                result = result.to_lowercase();
+            }
+            _ => {}
+        }
+    }
+    result
+}
+
 /// Check kinds supported by eval-harness
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -295,9 +312,17 @@ fn run_file_exists_check(check: &super::case::CaseCheck, workdir: &Path) -> Chec
 /// Run an output contains check
 fn run_output_contains_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let text = check.text.as_deref().unwrap_or("");
+    let normalize = check.normalize.as_deref().unwrap_or(&[]);
     
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
-    let passed = content.contains(text);
+    
+    let passed = if normalize.is_empty() {
+        content.contains(text)
+    } else {
+        let normalized_content = normalize_text(&content, normalize);
+        let normalized_text = normalize_text(text, normalize);
+        normalized_content.contains(&normalized_text)
+    };
     
     CheckResult {
         kind: CheckKind::OutputContains,
@@ -313,9 +338,17 @@ fn run_output_contains_check(check: &super::case::CaseCheck, transcript: &Path) 
 /// Run an output not contains check
 fn run_output_not_contains_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let text = check.text.as_deref().unwrap_or("");
+    let normalize = check.normalize.as_deref().unwrap_or(&[]);
     
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
-    let passed = !content.contains(text);
+    
+    let passed = if normalize.is_empty() {
+        !content.contains(text)
+    } else {
+        let normalized_content = normalize_text(&content, normalize);
+        let normalized_text = normalize_text(text, normalize);
+        !normalized_content.contains(&normalized_text)
+    };
     
     CheckResult {
         kind: CheckKind::OutputNotContains,
@@ -333,7 +366,6 @@ fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcrip
     let target_file = check.target_file.as_deref().unwrap_or("");
     let rubric = check.rubric.as_deref().unwrap_or("");
     let samples = check.samples.unwrap_or(3);
-    let judge_model = check.judge_model.as_deref().unwrap_or("anthropic/claude-sonnet-4-6");
     
     let target_path = workdir.join(target_file);
     if !target_path.exists() {
@@ -349,17 +381,59 @@ fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcrip
     }
     
     let target_content = std::fs::read_to_string(&target_path).unwrap_or_default();
+    let transcript_content = std::fs::read_to_string(transcript).unwrap_or_default();
+    let artifact = if !target_content.is_empty() { &target_content } else { &transcript_content };
     
-    // TODO: Implement actual LLM judge API call
-    // For now, return a placeholder
+    let truncated_artifact = if artifact.len() > 8000 {
+        &artifact[..8000]
+    } else {
+        artifact
+    };
+    
+    let judge_prompt = format!(
+        "You are an evaluation judge. Assess the following artifact against the rubric.\n\nRUBRIC:\n{}\n\nARTIFACT:\n{}\n\nRespond with exactly one word: PASS or FAIL",
+        rubric, truncated_artifact
+    );
+    
+    let mut pass_count = 0;
+    let mut total_votes = 0;
+    
+    for _ in 0..samples {
+        let output = Command::new("opencode")
+            .arg("run")
+            .arg("--prompt")
+            .arg(&judge_prompt)
+            .arg("--max-turns")
+            .arg("1")
+            .current_dir(workdir)
+            .output();
+        
+        match output {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let response = stdout.trim().to_uppercase();
+                total_votes += 1;
+                if response.contains("PASS") {
+                    pass_count += 1;
+                }
+            }
+            Err(_) => {
+                total_votes += 1;
+            }
+        }
+    }
+    
+    let majority_threshold = (samples + 1) / 2;
+    let passed = pass_count >= majority_threshold;
+    
     CheckResult {
         kind: CheckKind::LlmJudge,
-        passed: false,
-        failed_check_id: Some("judge_not_implemented".to_string()),
-        expected: Some("LLM judge evaluates rubric".to_string()),
-        actual: Some("not implemented".to_string()),
-        diff_hint: Some("LLM judge not yet implemented".to_string()),
-        error: Some(true),
+        passed,
+        failed_check_id: if passed { None } else { Some("llm_judge".to_string()) },
+        expected: Some(format!("PASS majority (>={})", majority_threshold)),
+        actual: Some(format!("{}/{} PASS votes", pass_count, total_votes)),
+        diff_hint: if passed { None } else { Some("LLM judge did not pass majority vote".to_string()) },
+        error: None,
     }
 }
 

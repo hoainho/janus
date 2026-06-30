@@ -70,6 +70,7 @@ pub struct CaseCheck {
     pub samples: Option<u32>,
     pub judge_model: Option<String>,
     pub rubric: Option<String>,
+    pub normalize: Option<Vec<String>>,
 }
 
 /// Load eval case from YAML file

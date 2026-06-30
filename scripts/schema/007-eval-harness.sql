@@ -87,3 +87,9 @@ CREATE INDEX idx_eval_case_run ON eval_case(run_id);
 CREATE INDEX idx_eval_baseline_skill ON eval_baseline(skill);
 CREATE INDEX idx_eval_history_created ON eval_history(created_at);
 CREATE INDEX idx_eval_budget_date ON eval_budget(date);
+
+CREATE TABLE IF NOT EXISTS eval_promoted (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill           TEXT    NOT NULL UNIQUE,
+    promoted_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);

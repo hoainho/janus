@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 use super::stats::RunSummary;
 use super::scoring::CaseResult;
@@ -346,6 +346,106 @@ pub fn save_quality_score(conn: &rusqlite::Connection, run_id: &str, case_id: &s
     ).map_err(|e| format!("Failed to save quality score: {}", e))?;
     
     Ok(conn.last_insert_rowid())
+}
+
+// === BASELINE FUNCTIONS ===
+
+pub fn save_eval_baseline(conn: &Connection, skill: &str, case_id: &str, checks_json: &str, env_manifest: &str) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO eval_baseline (skill, case_id, checks_json, env_manifest)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(skill, case_id) DO UPDATE SET
+           checks_json = excluded.checks_json,
+           env_manifest = excluded.env_manifest,
+           created_at = datetime('now')",
+        params![skill, case_id, checks_json, env_manifest],
+    ).map_err(|e| format!("Failed to save eval baseline: {}", e))?;
+    Ok(())
+}
+
+pub fn get_eval_baseline(conn: &Connection, skill: &str, case_id: &str) -> Result<Option<serde_json::Value>, String> {
+    let mut stmt = conn.prepare(
+        "SELECT id, skill, case_id, created_at, checks_json, env_manifest FROM eval_baseline WHERE skill = ?1 AND case_id = ?2"
+    ).map_err(|e| format!("Failed to prepare: {}", e))?;
+    
+    let result = stmt.query_row(params![skill, case_id], |row| {
+        Ok(serde_json::json!({
+            "id": row.get::<_, i64>(0)?,
+            "skill": row.get::<_, String>(1)?,
+            "case_id": row.get::<_, String>(2)?,
+            "created_at": row.get::<_, String>(3)?,
+            "checks_json": row.get::<_, Option<String>>(4)?,
+            "env_manifest": row.get::<_, Option<String>>(5)?,
+        }))
+    }).optional().map_err(|e| format!("Failed to query baseline: {}", e))?;
+    
+    Ok(result)
+}
+
+pub fn get_eval_baselines(conn: &Connection, skill: &str) -> Result<Vec<serde_json::Value>, String> {
+    let mut results = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT id, skill, case_id, created_at, checks_json, env_manifest FROM eval_baseline WHERE skill = ?1 ORDER BY case_id"
+    ).map_err(|e| format!("Failed to prepare: {}", e))?;
+    
+    let rows = stmt.query_map(params![skill], |row| {
+        Ok(serde_json::json!({
+            "id": row.get::<_, i64>(0)?,
+            "skill": row.get::<_, String>(1)?,
+            "case_id": row.get::<_, String>(2)?,
+            "created_at": row.get::<_, String>(3)?,
+            "checks_json": row.get::<_, Option<String>>(4)?,
+            "env_manifest": row.get::<_, Option<String>>(5)?,
+        }))
+    }).map_err(|e| format!("Failed to query baselines: {}", e))?;
+    
+    for row in rows { results.push(row.map_err(|e| format!("Failed to read: {}", e))?); }
+    Ok(results)
+}
+
+pub fn delete_eval_baselines(conn: &Connection, skill: &str) -> Result<(), String> {
+    conn.execute("DELETE FROM eval_baseline WHERE skill = ?1", params![skill])
+        .map_err(|e| format!("Failed to delete baselines: {}", e))?;
+    Ok(())
+}
+
+// === PROMOTION FUNCTIONS ===
+
+pub fn get_promoted_status(conn: &Connection, skill: &str) -> Result<bool, String> {
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(*) FROM eval_promoted WHERE skill = ?1"
+    ).map_err(|e| format!("Failed to prepare: {}", e))?;
+    
+    let count: i64 = stmt.query_row(params![skill], |row| row.get(0))
+        .map_err(|e| format!("Failed to query: {}", e))?;
+    
+    Ok(count > 0)
+}
+
+pub fn set_promoted_status(conn: &Connection, skill: &str, promoted: bool) -> Result<(), String> {
+    if promoted {
+        conn.execute(
+            "INSERT OR IGNORE INTO eval_promoted (skill, promoted_at) VALUES (?1, datetime('now'))",
+            params![skill],
+        ).map_err(|e| format!("Failed to promote: {}", e))?;
+    } else {
+        conn.execute(
+            "DELETE FROM eval_promoted WHERE skill = ?1",
+            params![skill],
+        ).map_err(|e| format!("Failed to demote: {}", e))?;
+    }
+    Ok(())
+}
+
+pub fn get_green_days(conn: &Connection, skill: &str) -> Result<i64, String> {
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(DISTINCT date(created_at)) FROM eval_run WHERE skill = ?1 AND verdict = 'PASS'"
+    ).map_err(|e| format!("Failed to prepare: {}", e))?;
+    
+    let count: i64 = stmt.query_row(params![skill], |row| row.get(0))
+        .map_err(|e| format!("Failed to query: {}", e))?;
+    
+    Ok(count)
 }
 
 pub fn get_quality_scores(conn: &rusqlite::Connection, run_id: Option<&str>, case_id: Option<&str>) -> Result<Vec<serde_json::Value>, String> {
