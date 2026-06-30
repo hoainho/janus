@@ -446,7 +446,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and PRs welcome at
 
 ## 📄 License
 
-[MIT](LICENSE) © 2025–2026 **Hoang Nguyen** (Hoài Nhớ).
+© 2025–2026 **Hoài Nhớ**.
 
 <div align="center">
 <br>
