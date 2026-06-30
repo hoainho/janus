@@ -1,5 +1,5 @@
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Pricing data from pricing.json
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,10 +27,9 @@ pub struct PricingStaleness {
 
 /// Load pricing data from file
 pub fn load_pricing(path: &Path) -> Result<PricingData, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read pricing.json: {}", e))?;
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse pricing.json: {}", e))
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read pricing.json: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse pricing.json: {}", e))
 }
 
 /// Check if pricing data is stale

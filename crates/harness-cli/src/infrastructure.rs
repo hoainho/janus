@@ -16,7 +16,7 @@ use crate::application::{
 use crate::domain::{
     compiled_tool_registry, normalize_token, score_context, score_trace, validate_tool_description,
     AuditFinding, AuditResult, BacklogFilter, BacklogRecord, ContextScoreResult,
-    ContextScoreSource, DecisionRecord, FrictionRecord, GcrRecord, GateLogRecord, HarnessStats,
+    ContextScoreSource, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord, HarnessStats,
     ImprovementProposal, IntakeRecord, InterventionRecord, RiskLane, StoryExportRecord,
     StoryMatrixRecord, StoryVerifyAllItem, StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec,
     ToolEntry, TraceRecord, TraceScoreResult, TraceScoreSource,
@@ -2850,7 +2850,10 @@ mod tests {
         assert!(proposals
             .iter()
             .all(|proposal| proposal.committed_backlog_id.is_some()));
-        assert!(repository.query_backlog(BacklogFilter::Open).unwrap().len() >= 1);
+        assert!(!repository
+            .query_backlog(BacklogFilter::Open)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

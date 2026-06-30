@@ -41,7 +41,10 @@ pub fn compute_attribution(
     } else if fixture_sha != baseline_fixture_sha {
         Attribution {
             class: AttributionClass::FixtureStale,
-            details: format!("Fixture SHA changed: {} -> {}", baseline_fixture_sha, fixture_sha),
+            details: format!(
+                "Fixture SHA changed: {} -> {}",
+                baseline_fixture_sha, fixture_sha
+            ),
             flaky,
             suspected_skills: None,
         }
@@ -53,7 +56,8 @@ pub fn compute_attribution(
             suspected_skills: None,
         }
     } else {
-        let changed: Vec<String> = other_skill_shas.iter()
+        let changed: Vec<String> = other_skill_shas
+            .iter()
             .filter(|(_, current, baseline)| current != baseline)
             .map(|(name, _, _)| name.clone())
             .collect();

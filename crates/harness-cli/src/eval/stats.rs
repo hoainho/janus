@@ -24,17 +24,18 @@ pub fn build_run_summary(
 ) -> RunSummary {
     let pass = case_results.iter().filter(|r| r.passed).count();
     let total = case_results.len();
-    let regressions: Vec<String> = case_results.iter()
+    let regressions: Vec<String> = case_results
+        .iter()
         .filter(|r| !r.passed)
         .map(|r| r.case_id.clone())
         .collect();
-    
+
     let verdict = if regressions.is_empty() {
         "PASS".to_string()
     } else {
         "REGRESSION".to_string()
     };
-    
+
     RunSummary {
         run_id: run_id.to_string(),
         trigger: trigger.to_string(),

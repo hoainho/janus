@@ -4,6 +4,7 @@
   "description": "The Unified EVAL Engine for AI-Assisted Development",
   "keywords": ["eval", "harness", "ai", "quality", "regression", "testing"],
   "author": "Hoài Nhớ <nhoxtvt@gmail.com>",
+  "license": "MIT",
   "homepage": "https://github.com/hoainho/janus",
   "repository": {
     "type": "git",

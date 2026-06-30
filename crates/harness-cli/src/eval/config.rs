@@ -1,5 +1,5 @@
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Eval configuration from .opencode/eval-harness.yaml
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,11 +26,10 @@ pub fn load_config(path: &Path) -> Result<EvalConfig, String> {
             llm_judge: None,
         });
     }
-    
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read config file: {}", e))?;
-    serde_yaml::from_str(&content)
-        .map_err(|e| format!("Failed to parse config YAML: {}", e))
+
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read config file: {}", e))?;
+    serde_yaml::from_str(&content).map_err(|e| format!("Failed to parse config YAML: {}", e))
 }
 
 /// Apply project config to environment

@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 /// Context for window-based evaluation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,67 +75,72 @@ pub struct CaseCheck {
 
 /// Load eval case from YAML file
 pub fn load_case(path: &Path) -> Result<EvalCase, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read case file: {}", e))?;
-    serde_yaml::from_str(&content)
-        .map_err(|e| format!("Failed to parse case YAML: {}", e))
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read case file: {}", e))?;
+    serde_yaml::from_str(&content).map_err(|e| format!("Failed to parse case YAML: {}", e))
 }
 
 /// Copy fixtures to workdir with path traversal protection
-pub fn copy_fixtures(
-    case: &EvalCase,
-    evals_dir: &Path,
-    workdir: &Path,
-) -> Result<(), String> {
+pub fn copy_fixtures(case: &EvalCase, evals_dir: &Path, workdir: &Path) -> Result<(), String> {
     let setup = match &case.setup {
         Some(s) => s,
         None => return Ok(()),
     };
-    
+
     let fixtures = match &setup.fixtures {
         Some(f) => f,
         None => return Ok(()),
     };
-    
+
     for (dest, src) in fixtures {
         // Reject absolute paths and path traversal
         if dest.starts_with("/") || dest.contains("..") {
-            return Err(format!("Rejected fixture dest='{}' (absolute or contains '..')", dest));
+            return Err(format!(
+                "Rejected fixture dest='{}' (absolute or contains '..')",
+                dest
+            ));
         }
-        
+
         let src_path = if src.starts_with("/") {
             PathBuf::from(src)
         } else {
             evals_dir.join(src)
         };
-        
+
         let full_dest = workdir.join(dest);
-        
+
         // Canonicalize and verify within workdir
-        let canonical_dest = full_dest.canonicalize()
-            .unwrap_or(full_dest.clone());
-        let canonical_workdir = workdir.canonicalize()
-            .unwrap_or(workdir.to_path_buf());
-        
+        let canonical_dest = full_dest.canonicalize().unwrap_or(full_dest.clone());
+        let canonical_workdir = workdir.canonicalize().unwrap_or(workdir.to_path_buf());
+
         if !canonical_dest.starts_with(&canonical_workdir) {
-            return Err(format!("Rejected fixture dest='{}' — resolves outside workdir", dest));
+            return Err(format!(
+                "Rejected fixture dest='{}' — resolves outside workdir",
+                dest
+            ));
         }
-        
+
         // Create parent directory
         if let Some(parent) = full_dest.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("mkdir failed for {}: {}", parent.display(), e))?;
         }
-        
+
         // Copy file
         if src_path.exists() {
-            std::fs::copy(&src_path, &full_dest)
-                .map_err(|e| format!("cp failed: {} -> {}: {}", src_path.display(), full_dest.display(), e))?;
+            std::fs::copy(&src_path, &full_dest).map_err(|e| {
+                format!(
+                    "cp failed: {} -> {}: {}",
+                    src_path.display(),
+                    full_dest.display(),
+                    e
+                )
+            })?;
         } else {
             return Err(format!("Fixture source missing: {}", src_path.display()));
         }
     }
-    
+
     Ok(())
 }
 
@@ -144,14 +149,14 @@ pub fn discover_cases(cases_dir: &Path) -> Result<Vec<PathBuf>, String> {
     if !cases_dir.exists() {
         return Ok(Vec::new());
     }
-    
+
     let mut cases: Vec<PathBuf> = std::fs::read_dir(cases_dir)
         .map_err(|e| format!("Failed to read cases dir: {}", e))?
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
-        .filter(|path| path.extension().map_or(false, |ext| ext == "yaml"))
+        .filter(|path| path.extension().is_some_and(|ext| ext == "yaml"))
         .collect();
-    
+
     cases.sort();
     Ok(cases)
 }

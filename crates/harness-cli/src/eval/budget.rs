@@ -23,13 +23,14 @@ impl BudgetManager {
     /// Get today's total spend from ledger
     fn today_spend(&self) -> f64 {
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        
+
         if !self.ledger_path.exists() {
             return 0.0;
         }
-        
+
         let content = std::fs::read_to_string(&self.ledger_path).unwrap_or_default();
-        content.lines()
+        content
+            .lines()
             .filter_map(|line| {
                 let entry: serde_json::Value = serde_json::from_str(line).ok()?;
                 let ts = entry.get("timestamp")?.as_str()?;
@@ -51,7 +52,7 @@ impl BudgetManager {
             "model": model,
             "timestamp": chrono::Utc::now().to_rfc3339(),
         });
-        
+
         let line = format!("{}\n", entry);
         let mut file = std::fs::OpenOptions::new()
             .create(true)
@@ -60,7 +61,7 @@ impl BudgetManager {
             .map_err(|e| format!("Failed to open ledger: {}", e))?;
         file.write_all(line.as_bytes())
             .map_err(|e| format!("Failed to write ledger: {}", e))?;
-        
+
         Ok(())
     }
 

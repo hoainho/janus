@@ -1,7 +1,7 @@
-use std::path::Path;
-use std::collections::BTreeMap;
-use sha2::{Sha256, Digest};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvManifest {
@@ -14,14 +14,10 @@ pub struct EnvManifest {
     pub timestamp: String,
 }
 
-pub fn capture_manifest(
-    skill_dir: &Path,
-    fixtures_dir: &Path,
-    model_id: &str,
-) -> EnvManifest {
+pub fn capture_manifest(skill_dir: &Path, fixtures_dir: &Path, model_id: &str) -> EnvManifest {
     let skill_sha = hash_directory(skill_dir);
     let fixture_sha = hash_directory(fixtures_dir);
-    
+
     EnvManifest {
         skill_bundle_sha: skill_sha.clone(),
         skill_sha,
@@ -37,10 +33,10 @@ fn hash_directory(path: &Path) -> String {
     if !path.exists() {
         return "sha256:empty".to_string();
     }
-    
+
     let mut files = BTreeMap::new();
     collect_files(path, path, &mut files);
-    
+
     let mut hasher = Sha256::new();
     for (relative_path, full_path) in &files {
         hasher.update(relative_path.as_bytes());
@@ -48,7 +44,7 @@ fn hash_directory(path: &Path) -> String {
             hasher.update(&contents);
         }
     }
-    
+
     let result = hasher.finalize();
     format!("sha256:{:x}", result)
 }
@@ -57,7 +53,7 @@ fn collect_files(base: &Path, current: &Path, files: &mut BTreeMap<String, std::
     if !current.is_dir() {
         return;
     }
-    
+
     if let Ok(entries) = std::fs::read_dir(current) {
         for entry in entries.flatten() {
             let path = entry.path();

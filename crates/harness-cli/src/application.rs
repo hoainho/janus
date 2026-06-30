@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::domain::{
     AuditResult, BacklogFilter, BacklogRecord, BoolFlag, ContextScoreResult, CsvList,
-    DecisionRecord, FrictionRecord, GcrRecord, GateLogRecord, HarnessStats, ImprovementProposal,
+    DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord, HarnessStats, ImprovementProposal,
     InputType, IntakeRecord, InterventionRecord, RiskLane, StoryExportRecord, StoryMatrixRecord,
     StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec, ToolEntry, TraceRecord, TraceScoreResult,
 };
@@ -317,16 +317,11 @@ impl HarnessService {
         self.repository.set_t4_verdict(input)
     }
 
-    pub fn query_export_matrix(
-        &self,
-    ) -> crate::infrastructure::Result<Vec<StoryExportRecord>> {
+    pub fn query_export_matrix(&self) -> crate::infrastructure::Result<Vec<StoryExportRecord>> {
         self.repository.query_export_matrix()
     }
 
-    pub fn query_export_story(
-        &self,
-        id: &str,
-    ) -> crate::infrastructure::Result<StoryExportRecord> {
+    pub fn query_export_story(&self, id: &str) -> crate::infrastructure::Result<StoryExportRecord> {
         self.repository.query_export_story(id)
     }
 

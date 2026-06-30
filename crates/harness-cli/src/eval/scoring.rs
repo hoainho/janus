@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use serde::{Deserialize, Serialize};
 
 pub(crate) fn normalize_text(text: &str, modes: &[String]) -> String {
     let mut result = text.to_string();
@@ -66,7 +66,7 @@ pub fn run_all_checks(
 ) -> CaseResult {
     let start = std::time::Instant::now();
     let mut checks = Vec::new();
-    
+
     for check in &case.checks {
         let result = match check.kind.as_str() {
             "shell" => run_shell_check(check, workdir),
@@ -90,10 +90,10 @@ pub fn run_all_checks(
         };
         checks.push(result);
     }
-    
+
     let pass_count = checks.iter().filter(|c| c.passed).count();
     let fail_count = checks.len() - pass_count;
-    
+
     CaseResult {
         case_id: case.id.clone(),
         passed: fail_count == 0,
@@ -108,7 +108,7 @@ pub fn run_all_checks(
 /// Run a shell command check
 fn run_shell_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResult {
     let cmd = check.cmd.as_deref().unwrap_or("");
-    
+
     // Safety: reject dangerous commands
     if is_dangerous_command(cmd) {
         return CheckResult {
@@ -121,29 +121,37 @@ fn run_shell_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResul
             error: Some(true),
         };
     }
-    
+
     // Run command
     let output = Command::new("sh")
         .arg("-c")
         .arg(cmd)
         .current_dir(workdir)
         .output();
-    
+
     match output {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
-            
+
             // Check expectations
             if let Some(expect_exact) = &check.expect_exact {
                 let passed = stdout.trim() == expect_exact.trim();
                 CheckResult {
                     kind: CheckKind::Shell,
                     passed,
-                    failed_check_id: if passed { None } else { Some("shell_exact".to_string()) },
+                    failed_check_id: if passed {
+                        None
+                    } else {
+                        Some("shell_exact".to_string())
+                    },
                     expected: Some(expect_exact.clone()),
                     actual: Some(stdout.trim().to_string()),
-                    diff_hint: if passed { None } else { Some("Output doesn't match expected".to_string()) },
+                    diff_hint: if passed {
+                        None
+                    } else {
+                        Some("Output doesn't match expected".to_string())
+                    },
                     error: None,
                 }
             } else if let Some(expect_min) = check.expect_min {
@@ -152,10 +160,18 @@ fn run_shell_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResul
                 CheckResult {
                     kind: CheckKind::Shell,
                     passed,
-                    failed_check_id: if passed { None } else { Some("shell_min".to_string()) },
+                    failed_check_id: if passed {
+                        None
+                    } else {
+                        Some("shell_min".to_string())
+                    },
                     expected: Some(format!(">={}", expect_min)),
                     actual: Some(count.to_string()),
-                    diff_hint: if passed { None } else { Some("Count below minimum".to_string()) },
+                    diff_hint: if passed {
+                        None
+                    } else {
+                        Some("Count below minimum".to_string())
+                    },
                     error: None,
                 }
             } else if let Some(expect_regex) = &check.expect_regex {
@@ -166,10 +182,18 @@ fn run_shell_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResul
                         CheckResult {
                             kind: CheckKind::Shell,
                             passed,
-                            failed_check_id: if passed { None } else { Some("shell_regex".to_string()) },
+                            failed_check_id: if passed {
+                                None
+                            } else {
+                                Some("shell_regex".to_string())
+                            },
                             expected: Some(expect_regex.clone()),
                             actual: Some(stdout.trim().to_string()),
-                            diff_hint: if passed { None } else { Some("Output doesn't match regex".to_string()) },
+                            diff_hint: if passed {
+                                None
+                            } else {
+                                Some("Output doesn't match regex".to_string())
+                            },
                             error: None,
                         }
                     }
@@ -188,10 +212,18 @@ fn run_shell_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResul
                 CheckResult {
                     kind: CheckKind::Shell,
                     passed: output.status.success(),
-                    failed_check_id: if output.status.success() { None } else { Some("shell_exit".to_string()) },
+                    failed_check_id: if output.status.success() {
+                        None
+                    } else {
+                        Some("shell_exit".to_string())
+                    },
                     expected: Some("exit 0".to_string()),
                     actual: Some(format!("exit {}", output.status.code().unwrap_or(-1))),
-                    diff_hint: if output.status.success() { None } else { Some(stderr.trim().to_string()) },
+                    diff_hint: if output.status.success() {
+                        None
+                    } else {
+                        Some(stderr.trim().to_string())
+                    },
                     error: None,
                 }
             }
@@ -210,26 +242,22 @@ fn run_shell_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResul
 
 /// Check if a command is dangerous
 pub(crate) fn is_dangerous_command(cmd: &str) -> bool {
-    let dangerous_patterns = [
-        "rm -rf",
-        "rm -r /",
-        "$(",
-        "`",
-    ];
-    
+    let dangerous_patterns = ["rm -rf", "rm -r /", "$(", "`"];
+
     for pattern in &dangerous_patterns {
         if cmd.contains(pattern) {
             return true;
         }
     }
-    
+
     let cmd_lower = cmd.to_lowercase();
-    if (cmd_lower.contains("curl") || cmd_lower.contains("wget")) 
-        && cmd_lower.contains("|") 
-        && (cmd_lower.contains("sh") || cmd_lower.contains("bash")) {
+    if (cmd_lower.contains("curl") || cmd_lower.contains("wget"))
+        && cmd_lower.contains("|")
+        && (cmd_lower.contains("sh") || cmd_lower.contains("bash"))
+    {
         return true;
     }
-    
+
     false
 }
 
@@ -238,7 +266,7 @@ fn run_jq_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResult {
     let file = check.file.as_deref().unwrap_or("");
     let path = check.path.as_deref().unwrap_or(".");
     let contains = check.contains.as_deref().unwrap_or(&[]);
-    
+
     let file_path = workdir.join(file);
     if !file_path.exists() {
         return CheckResult {
@@ -251,32 +279,41 @@ fn run_jq_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResult {
             error: Some(true),
         };
     }
-    
+
     // Run jq
     let output = Command::new("jq")
         .arg("-r")
         .arg(path)
         .arg(&file_path)
         .output();
-    
+
     match output {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let values: Vec<&str> = stdout.lines().collect();
-            
-            let missing: Vec<String> = contains.iter()
+
+            let missing: Vec<String> = contains
+                .iter()
                 .filter(|c| !values.contains(&c.as_str()))
                 .cloned()
                 .collect();
-            
+
             let passed = missing.is_empty();
             CheckResult {
                 kind: CheckKind::JqPathContains,
                 passed,
-                failed_check_id: if passed { None } else { Some("jq_missing_values".to_string()) },
+                failed_check_id: if passed {
+                    None
+                } else {
+                    Some("jq_missing_values".to_string())
+                },
                 expected: Some(format!("{:?}", contains)),
                 actual: Some(format!("{:?}", values)),
-                diff_hint: if passed { None } else { Some(format!("Missing: {:?}", missing)) },
+                diff_hint: if passed {
+                    None
+                } else {
+                    Some(format!("Missing: {:?}", missing))
+                },
                 error: None,
             }
         }
@@ -296,15 +333,23 @@ fn run_jq_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResult {
 fn run_file_exists_check(check: &super::case::CaseCheck, workdir: &Path) -> CheckResult {
     let path = check.path.as_deref().unwrap_or("");
     let file_path = workdir.join(path);
-    
+
     let passed = file_path.exists();
     CheckResult {
         kind: CheckKind::FileExists,
         passed,
-        failed_check_id: if passed { None } else { Some("file_missing".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("file_missing".to_string())
+        },
         expected: Some(format!("{} exists", path)),
         actual: Some(if passed { "exists" } else { "not found" }.to_string()),
-        diff_hint: if passed { None } else { Some("File not found".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("File not found".to_string())
+        },
         error: None,
     }
 }
@@ -313,9 +358,9 @@ fn run_file_exists_check(check: &super::case::CaseCheck, workdir: &Path) -> Chec
 fn run_output_contains_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let text = check.text.as_deref().unwrap_or("");
     let normalize = check.normalize.as_deref().unwrap_or(&[]);
-    
+
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
-    
+
     let passed = if normalize.is_empty() {
         content.contains(text)
     } else {
@@ -323,14 +368,22 @@ fn run_output_contains_check(check: &super::case::CaseCheck, transcript: &Path) 
         let normalized_text = normalize_text(text, normalize);
         normalized_content.contains(&normalized_text)
     };
-    
+
     CheckResult {
         kind: CheckKind::OutputContains,
         passed,
-        failed_check_id: if passed { None } else { Some("output_missing".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("output_missing".to_string())
+        },
         expected: Some(format!("output contains '{}'", text)),
         actual: Some(if passed { "found" } else { "not found" }.to_string()),
-        diff_hint: if passed { None } else { Some("Text not found in transcript".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("Text not found in transcript".to_string())
+        },
         error: None,
     }
 }
@@ -339,9 +392,9 @@ fn run_output_contains_check(check: &super::case::CaseCheck, transcript: &Path) 
 fn run_output_not_contains_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let text = check.text.as_deref().unwrap_or("");
     let normalize = check.normalize.as_deref().unwrap_or(&[]);
-    
+
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
-    
+
     let passed = if normalize.is_empty() {
         !content.contains(text)
     } else {
@@ -349,24 +402,36 @@ fn run_output_not_contains_check(check: &super::case::CaseCheck, transcript: &Pa
         let normalized_text = normalize_text(text, normalize);
         !normalized_content.contains(&normalized_text)
     };
-    
+
     CheckResult {
         kind: CheckKind::OutputNotContains,
         passed,
-        failed_check_id: if passed { None } else { Some("output_unwanted".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("output_unwanted".to_string())
+        },
         expected: Some(format!("output does NOT contain '{}'", text)),
         actual: Some(if passed { "not found" } else { "found" }.to_string()),
-        diff_hint: if passed { None } else { Some("Unwanted text found in transcript".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("Unwanted text found in transcript".to_string())
+        },
         error: None,
     }
 }
 
 /// Run an LLM judge check
-fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcript: &Path) -> CheckResult {
+fn run_llm_judge_check(
+    check: &super::case::CaseCheck,
+    workdir: &Path,
+    transcript: &Path,
+) -> CheckResult {
     let target_file = check.target_file.as_deref().unwrap_or("");
     let rubric = check.rubric.as_deref().unwrap_or("");
     let samples = check.samples.unwrap_or(3);
-    
+
     let target_path = workdir.join(target_file);
     if !target_path.exists() {
         return CheckResult {
@@ -379,25 +444,29 @@ fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcrip
             error: Some(true),
         };
     }
-    
+
     let target_content = std::fs::read_to_string(&target_path).unwrap_or_default();
     let transcript_content = std::fs::read_to_string(transcript).unwrap_or_default();
-    let artifact = if !target_content.is_empty() { &target_content } else { &transcript_content };
-    
+    let artifact = if !target_content.is_empty() {
+        &target_content
+    } else {
+        &transcript_content
+    };
+
     let truncated_artifact = if artifact.len() > 8000 {
         &artifact[..8000]
     } else {
         artifact
     };
-    
+
     let judge_prompt = format!(
         "You are an evaluation judge. Assess the following artifact against the rubric.\n\nRUBRIC:\n{}\n\nARTIFACT:\n{}\n\nRespond with exactly one word: PASS or FAIL",
         rubric, truncated_artifact
     );
-    
+
     let mut pass_count = 0;
     let mut total_votes = 0;
-    
+
     for _ in 0..samples {
         let output = Command::new("opencode")
             .arg("run")
@@ -407,7 +476,7 @@ fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcrip
             .arg("1")
             .current_dir(workdir)
             .output();
-        
+
         match output {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
@@ -422,17 +491,25 @@ fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcrip
             }
         }
     }
-    
-    let majority_threshold = (samples + 1) / 2;
+
+    let majority_threshold = samples.div_ceil(2);
     let passed = pass_count >= majority_threshold;
-    
+
     CheckResult {
         kind: CheckKind::LlmJudge,
         passed,
-        failed_check_id: if passed { None } else { Some("llm_judge".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("llm_judge".to_string())
+        },
         expected: Some(format!("PASS majority (>={})", majority_threshold)),
         actual: Some(format!("{}/{} PASS votes", pass_count, total_votes)),
-        diff_hint: if passed { None } else { Some("LLM judge did not pass majority vote".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("LLM judge did not pass majority vote".to_string())
+        },
         error: None,
     }
 }
@@ -440,20 +517,28 @@ fn run_llm_judge_check(check: &super::case::CaseCheck, workdir: &Path, transcrip
 fn run_prompt_quality_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
     let min_length = check.expect_min.unwrap_or(10);
-    
+
     let prompt_lines: Vec<&str> = content.lines().collect();
     let prompt_text = prompt_lines.join(" ");
     let word_count = prompt_text.split_whitespace().count();
-    
+
     let passed = word_count >= min_length as usize;
-    
+
     CheckResult {
         kind: CheckKind::PromptQuality,
         passed,
-        failed_check_id: if passed { None } else { Some("prompt_too_short".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("prompt_too_short".to_string())
+        },
         expected: Some(format!(">={} words", min_length)),
         actual: Some(format!("{} words", word_count)),
-        diff_hint: if passed { None } else { Some("Prompt is too short, provide more context".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("Prompt is too short, provide more context".to_string())
+        },
         error: None,
     }
 }
@@ -461,20 +546,28 @@ fn run_prompt_quality_check(check: &super::case::CaseCheck, transcript: &Path) -
 fn run_response_quality_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
     let min_length = check.expect_min.unwrap_or(50);
-    
+
     let response_lines: Vec<&str> = content.lines().collect();
     let response_text = response_lines.join(" ");
     let word_count = response_text.split_whitespace().count();
-    
+
     let passed = word_count >= min_length as usize;
-    
+
     CheckResult {
         kind: CheckKind::ResponseQuality,
         passed,
-        failed_check_id: if passed { None } else { Some("response_too_short".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("response_too_short".to_string())
+        },
         expected: Some(format!(">={} words", min_length)),
         actual: Some(format!("{} words", word_count)),
-        diff_hint: if passed { None } else { Some("Response is too short, provide more detail".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("Response is too short, provide more detail".to_string())
+        },
         error: None,
     }
 }
@@ -482,16 +575,24 @@ fn run_response_quality_check(check: &super::case::CaseCheck, transcript: &Path)
 fn run_context_relevance_check(check: &super::case::CaseCheck, transcript: &Path) -> CheckResult {
     let content = std::fs::read_to_string(transcript).unwrap_or_default();
     let required_text = check.text.as_deref().unwrap_or("");
-    
+
     let passed = content.contains(required_text);
-    
+
     CheckResult {
         kind: CheckKind::ContextRelevance,
         passed,
-        failed_check_id: if passed { None } else { Some("context_not_relevant".to_string()) },
+        failed_check_id: if passed {
+            None
+        } else {
+            Some("context_not_relevant".to_string())
+        },
         expected: Some(format!("contains '{}'", required_text)),
         actual: Some(if passed { "found" } else { "not found" }.to_string()),
-        diff_hint: if passed { None } else { Some("Response does not contain required context".to_string()) },
+        diff_hint: if passed {
+            None
+        } else {
+            Some("Response does not contain required context".to_string())
+        },
         error: None,
     }
 }

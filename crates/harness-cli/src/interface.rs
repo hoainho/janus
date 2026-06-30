@@ -15,7 +15,7 @@ use crate::application::{
 use crate::domain::{
     normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
     validate_responsibility, validate_tool_kind, BacklogFilter, BacklogRecord, BoolFlag,
-    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, GcrRecord, GateLogRecord,
+    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord,
     HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord, RiskLane,
     StoryExportRecord, StoryMatrixRecord, StoryVerifyAllResult, ToolEntry, TraceQualityTier,
     TraceRecord, TraceScoreResult, RISK_LANE_HELP,
@@ -44,7 +44,9 @@ enum Command {
     Intervention(InterventionArgs),
     Trace(TraceArgs),
     ScoreTrace(ScoreTraceArgs),
-    ScoreContext { trace_id: String },
+    ScoreContext {
+        trace_id: String,
+    },
     Audit,
     Propose(ProposeArgs),
     GateLog(GateLogArgs),
@@ -993,144 +995,196 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
     let skills_root = resolve_skills_root();
     let skill_dir = skills_root.join(&args.skill);
     let evals_dir = skill_dir.join("evals");
-    
+
     let cases_dir = match args.eval_type.as_str() {
         "context" => evals_dir.join("context-cases"),
         "quality" => evals_dir.join("quality-cases"),
         _ => evals_dir.join("cases"),
     };
-    
+
     if !cases_dir.exists() {
-        println!("[eval-harness] no {} evals found for skill '{}' at {}", args.eval_type, args.skill, cases_dir.display());
+        println!(
+            "[eval-harness] no {} evals found for skill '{}' at {}",
+            args.eval_type,
+            args.skill,
+            cases_dir.display()
+        );
         return Ok(());
     }
-    
+
     let case_files = if let Some(case_id) = &args.case {
         vec![cases_dir.join(format!("{}.yaml", case_id))]
     } else {
-        crate::eval::case::discover_cases(&cases_dir)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?
+        crate::eval::case::discover_cases(&cases_dir).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?
     };
-    
+
     if case_files.is_empty() {
-        println!("[eval-harness] no case files matched for skill={} case={:?}", args.skill, args.case);
+        println!(
+            "[eval-harness] no case files matched for skill={} case={:?}",
+            args.skill, args.case
+        );
         return Ok(());
     }
-    
-    println!("[eval-harness] skill={} cases={}", args.skill, case_files.len());
-    
+
+    println!(
+        "[eval-harness] skill={} cases={}",
+        args.skill,
+        case_files.len()
+    );
+
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
     if db_path.exists() {
         if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-            let goals = crate::eval::storage::get_eval_goals(&conn, Some(&args.skill))
-                .unwrap_or_default();
+            let goals =
+                crate::eval::storage::get_eval_goals(&conn, Some(&args.skill)).unwrap_or_default();
             if goals.is_empty() {
                 println!("[eval-harness] No goal defined for skill '{}'", args.skill);
                 println!("[eval-harness] Consider: harness-cli eval goal --skill={} --type=regression_detection", args.skill);
             }
         }
     }
-    
+
     if args.dry_run {
         for (i, case_file) in case_files.iter().enumerate() {
             if let Ok(case) = crate::eval::case::load_case(case_file) {
-                println!("[eval-harness] [dry-run] case {}/{} {}", i + 1, case_files.len(), case.id);
+                println!(
+                    "[eval-harness] [dry-run] case {}/{} {}",
+                    i + 1,
+                    case_files.len(),
+                    case.id
+                );
             }
         }
         println!("[eval-harness] dry-run complete");
         return Ok(());
     }
-    
+
     let state_dir = get_state_dir();
-    let run_id = format!("{}-{}", 
+    let run_id = format!(
+        "{}-{}",
         chrono::Utc::now().format("%Y-%m-%dT%H-%M-%SZ"),
         std::process::id()
     );
     let run_dir = state_dir.join("runs").join(&run_id);
-    std::fs::create_dir_all(&run_dir)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-    
+    std::fs::create_dir_all(&run_dir).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+    })?;
+
     println!("[eval-harness] run_id={}", run_id);
-    
+
     let mut case_results = Vec::new();
     let start_time = std::time::Instant::now();
-    
+
     for (i, case_file) in case_files.iter().enumerate() {
-        let case = crate::eval::case::load_case(case_file)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-        
-        println!("[eval-harness] Case {}/{} {}", i + 1, case_files.len(), case.id);
-        
+        let case = crate::eval::case::load_case(case_file).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
+
+        println!(
+            "[eval-harness] Case {}/{} {}",
+            i + 1,
+            case_files.len(),
+            case.id
+        );
+
         let per_case_dir = run_dir.join(&case.id);
-        std::fs::create_dir_all(&per_case_dir)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-        
+        std::fs::create_dir_all(&per_case_dir).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
+
         let workdir = per_case_dir.join("workdir");
-        let sandbox = per_case_dir.join("sandbox");
+        let _sandbox = per_case_dir.join("sandbox");
         let transcript = per_case_dir.join("transcript.jsonl");
-        
-        std::fs::create_dir_all(&workdir)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-        
+
+        std::fs::create_dir_all(&workdir).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
+
         if let Err(e) = crate::eval::case::copy_fixtures(&case, &evals_dir, &workdir) {
             println!("[eval-harness] Warning: fixture copy failed: {}", e);
         }
-        
+
         let injected_prompt = crate::eval::context::inject_context(&case);
-        
+
         if case.context.is_some() {
-            println!("[eval-harness]   Context injected: {} chars", injected_prompt.len());
-            std::fs::write(&transcript, &injected_prompt)
-                .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+            println!(
+                "[eval-harness]   Context injected: {} chars",
+                injected_prompt.len()
+            );
+            std::fs::write(&transcript, &injected_prompt).map_err(|e| {
+                InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+            })?;
         }
-        
+
         let case_start = std::time::Instant::now();
-        
+
         let result_with_duration = if case.mode == "stochastic" {
             let st_samples = case.samples.unwrap_or(5) as usize;
             let st_threshold = case.pass_threshold.unwrap_or(st_samples as u32) as usize;
             let st_temperature = case.temperature.unwrap_or(0.0);
-            
-            println!("[eval-harness]   Stochastic mode: {} samples, threshold {}, temp {}", st_samples, st_threshold, st_temperature);
-            
+
+            println!(
+                "[eval-harness]   Stochastic mode: {} samples, threshold {}, temp {}",
+                st_samples, st_threshold, st_temperature
+            );
+
             let mut st_pass = 0;
-            let mut st_total = 0;
             let mut last_checks = Vec::new();
-            
+
             for s in 0..st_samples {
                 let sample_dir = per_case_dir.join(format!("sample-{}", s + 1));
-                std::fs::create_dir_all(&sample_dir)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                std::fs::create_dir_all(&sample_dir).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+                })?;
                 let sample_workdir = sample_dir.join("workdir");
-                std::fs::create_dir_all(&sample_workdir)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                std::fs::create_dir_all(&sample_workdir).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+                })?;
                 let sample_transcript = sample_dir.join("transcript.jsonl");
-                
-                if let Err(e) = crate::eval::case::copy_fixtures(&case, &evals_dir, &sample_workdir) {
-                    println!("[eval-harness]     Warning: fixture copy failed for sample {}: {}", s + 1, e);
+
+                if let Err(e) = crate::eval::case::copy_fixtures(&case, &evals_dir, &sample_workdir)
+                {
+                    println!(
+                        "[eval-harness]     Warning: fixture copy failed for sample {}: {}",
+                        s + 1,
+                        e
+                    );
                 }
-                
+
                 if case.context.is_some() {
-                    std::fs::write(&sample_transcript, &injected_prompt)
-                        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                    std::fs::write(&sample_transcript, &injected_prompt).map_err(|e| {
+                        InterfaceError::Infrastructure(
+                            crate::infrastructure::HarnessInfraError::Io(e),
+                        )
+                    })?;
                 }
-                
-                let sample_result = crate::eval::scoring::run_all_checks(&case, &sample_workdir, &sample_transcript);
-                st_total += 1;
+
+                let sample_result = crate::eval::scoring::run_all_checks(
+                    &case,
+                    &sample_workdir,
+                    &sample_transcript,
+                );
                 if sample_result.passed {
                     st_pass += 1;
                 }
                 last_checks = sample_result.checks.clone();
-                
+
                 let sample_json = serde_json::to_string_pretty(&sample_result).unwrap_or_default();
-                std::fs::write(sample_dir.join("checks.json"), &sample_json)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                std::fs::write(sample_dir.join("checks.json"), &sample_json).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+                })?;
             }
-            
+
             let stochastic_passed = st_pass >= st_threshold;
             let case_duration = case_start.elapsed().as_millis() as u64;
-            
+
             crate::eval::scoring::CaseResult {
                 case_id: case.id.clone(),
                 passed: stochastic_passed,
@@ -1147,59 +1201,77 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
             r.duration_ms = Some(case_duration);
             r
         };
-        
+
         if result_with_duration.passed {
             println!("[eval-harness]   PASS");
         } else {
             println!("[eval-harness]   FAIL");
         }
-        
+
         let result_json = serde_json::to_string_pretty(&result_with_duration).unwrap_or_default();
-        std::fs::write(per_case_dir.join("checks.json"), &result_json)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-        
+        std::fs::write(per_case_dir.join("checks.json"), &result_json).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
+
         case_results.push(result_with_duration);
     }
-    
+
     if args.mode == "2tier" {
-        let failed_indices: Vec<usize> = case_results.iter()
+        let failed_indices: Vec<usize> = case_results
+            .iter()
             .enumerate()
             .filter(|(_, r)| !r.passed)
             .map(|(i, _)| i)
             .collect();
-        
+
         if !failed_indices.is_empty() {
-            println!("[eval-harness] 2-tier: {} failed cases escalating to full mode", failed_indices.len());
-            
+            println!(
+                "[eval-harness] 2-tier: {} failed cases escalating to full mode",
+                failed_indices.len()
+            );
+
             for &idx in &failed_indices {
                 let case_file = &case_files[idx];
-                let case = crate::eval::case::load_case(case_file)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-                
+                let case = crate::eval::case::load_case(case_file).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                        std::io::Error::other(e),
+                    ))
+                })?;
+
                 let per_case_dir = run_dir.join(&case.id).join("full");
-                std::fs::create_dir_all(&per_case_dir)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                std::fs::create_dir_all(&per_case_dir).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+                })?;
                 let full_workdir = per_case_dir.join("workdir");
-                std::fs::create_dir_all(&full_workdir)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                std::fs::create_dir_all(&full_workdir).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+                })?;
                 let full_transcript = per_case_dir.join("transcript.jsonl");
-                
+
                 if let Err(e) = crate::eval::case::copy_fixtures(&case, &evals_dir, &full_workdir) {
-                    println!("[eval-harness]   Warning: fixture copy failed for {}: {}", case.id, e);
+                    println!(
+                        "[eval-harness]   Warning: fixture copy failed for {}: {}",
+                        case.id, e
+                    );
                 }
-                
+
                 let injected_prompt = crate::eval::context::inject_context(&case);
                 if case.context.is_some() {
-                    std::fs::write(&full_transcript, &injected_prompt)
-                        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+                    std::fs::write(&full_transcript, &injected_prompt).map_err(|e| {
+                        InterfaceError::Infrastructure(
+                            crate::infrastructure::HarnessInfraError::Io(e),
+                        )
+                    })?;
                 }
-                
-                let full_result = crate::eval::scoring::run_all_checks(&case, &full_workdir, &full_transcript);
-                
+
+                let full_result =
+                    crate::eval::scoring::run_all_checks(&case, &full_workdir, &full_transcript);
+
                 let full_json = serde_json::to_string_pretty(&full_result).unwrap_or_default();
-                std::fs::write(per_case_dir.join("checks.json"), &full_json)
-                    .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-                
+                std::fs::write(per_case_dir.join("checks.json"), &full_json).map_err(|e| {
+                    InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+                })?;
+
                 if full_result.passed {
                     println!("[eval-harness]   {} PASS (full mode)", case.id);
                     case_results[idx] = full_result;
@@ -1209,14 +1281,18 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
             }
         }
     }
-    
+
     let total_duration = start_time.elapsed().as_millis() as u64;
     let pass_count = case_results.iter().filter(|r| r.passed).count();
     let total_count = case_results.len();
     let regression_count = total_count - pass_count;
-    
-    let verdict = if regression_count == 0 { "PASS" } else { "REGRESSION" };
-    
+
+    let verdict = if regression_count == 0 {
+        "PASS"
+    } else {
+        "REGRESSION"
+    };
+
     let summary = crate::eval::stats::RunSummary {
         run_id: run_id.clone(),
         trigger: args.trigger.clone(),
@@ -1225,27 +1301,30 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
         pass: pass_count,
         total: total_count,
         regression_count,
-        regressions: case_results.iter()
+        regressions: case_results
+            .iter()
             .filter(|r| !r.passed)
             .map(|r| r.case_id.clone())
             .collect(),
         total_cost_usd: None,
         duration_ms: Some(total_duration),
     };
-    
+
     let results_json = serde_json::to_string_pretty(&summary).unwrap_or_default();
-    std::fs::write(run_dir.join("results.json"), &results_json)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-    
+    std::fs::write(run_dir.join("results.json"), &results_json).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+    })?;
+
     let diff_md = crate::eval::diff::render_diff_md(
         &run_id,
         &args.skill,
         &case_results,
         &std::collections::HashMap::new(),
     );
-    std::fs::write(run_dir.join("diff.md"), &diff_md)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-    
+    std::fs::write(run_dir.join("diff.md"), &diff_md).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+    })?;
+
     let history_entry = serde_json::json!({
         "event": "run",
         "run_id": run_id,
@@ -1258,43 +1337,59 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
         "duration_ms": total_duration,
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
-    
+
     let history_file = state_dir.join("history.ndjson");
-    let history_line = format!("{}\n", serde_json::to_string(&history_entry).unwrap_or_default());
+    let history_line = format!(
+        "{}\n",
+        serde_json::to_string(&history_entry).unwrap_or_default()
+    );
     std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&history_file)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?
+        .map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?
         .write_all(history_line.as_bytes())
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-    
+        .map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
+
     let db_path = state_dir.join("harness.db");
     if db_path.exists() {
         if let Ok(conn) = rusqlite::Connection::open(&db_path) {
             let _ = crate::eval::storage::save_eval_run(&conn, &summary);
-            
+
             for result in &case_results {
                 let _ = crate::eval::storage::save_eval_case(&conn, &run_id, result);
             }
-            
+
             let summary_json = serde_json::to_string(&summary).unwrap_or_default();
             let _ = crate::eval::storage::save_eval_history(
-                &conn, "run", &run_id, &args.skill, &args.trigger, verdict, &summary_json
+                &conn,
+                "run",
+                &run_id,
+                &args.skill,
+                &args.trigger,
+                verdict,
+                &summary_json,
             );
         }
     }
-    
+
     println!("[eval-harness] {} {}/{}", verdict, pass_count, total_count);
     if regression_count > 0 {
-        println!("[eval-harness] Regressions: {}", summary.regressions.join(", "));
+        println!(
+            "[eval-harness] Regressions: {}",
+            summary.regressions.join(", ")
+        );
     }
     println!("[eval-harness] See {}/diff.md", run_dir.display());
-    
+
     if verdict == "REGRESSION" && args.strict {
         std::process::exit(12);
     }
-    
+
     Ok(())
 }
 
@@ -1302,11 +1397,11 @@ fn get_state_dir() -> std::path::PathBuf {
     if let Ok(dir) = std::env::var("EVAL_STATE_DIR") {
         return std::path::PathBuf::from(dir);
     }
-    
+
     if let Some(home) = get_home_dir() {
         return home.join(".config/opencode/eval-harness");
     }
-    
+
     std::path::PathBuf::from(".opencode/eval-harness")
 }
 
@@ -1314,12 +1409,12 @@ fn get_home_dir() -> Option<std::path::PathBuf> {
     if let Ok(home) = std::env::var("HOME") {
         return Some(std::path::PathBuf::from(home));
     }
-    
+
     #[cfg(windows)]
     if let Ok(profile) = std::env::var("USERPROFILE") {
         return Some(std::path::PathBuf::from(profile));
     }
-    
+
     None
 }
 
@@ -1330,50 +1425,86 @@ fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
     let cases_dir = evals_dir.join("cases");
 
     if !cases_dir.exists() {
-        println!("[eval-harness] no evals found for skill '{}' at {}", args.skill, cases_dir.display());
+        println!(
+            "[eval-harness] no evals found for skill '{}' at {}",
+            args.skill,
+            cases_dir.display()
+        );
         return Ok(());
     }
 
-    let case_files = crate::eval::case::discover_cases(&cases_dir)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let case_files = crate::eval::case::discover_cases(&cases_dir).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
     if case_files.is_empty() {
-        println!("[eval-harness] no case files found for skill={}", args.skill);
+        println!(
+            "[eval-harness] no case files found for skill={}",
+            args.skill
+        );
         return Ok(());
     }
 
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    println!("[eval-harness] Creating baseline for skill '{}' ({} cases)...", args.skill, case_files.len());
+    println!(
+        "[eval-harness] Creating baseline for skill '{}' ({} cases)...",
+        args.skill,
+        case_files.len()
+    );
 
     let mut created = 0;
     for case_file in &case_files {
-        let case = crate::eval::case::load_case(case_file)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+        let case = crate::eval::case::load_case(case_file).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
 
         let per_case_dir = state_dir.join("baseline_tmp").join(&case.id);
-        std::fs::create_dir_all(&per_case_dir)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        std::fs::create_dir_all(&per_case_dir).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
         let workdir = per_case_dir.join("workdir");
-        std::fs::create_dir_all(&workdir)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        std::fs::create_dir_all(&workdir).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
         let transcript = per_case_dir.join("transcript.jsonl");
-        std::fs::write(&transcript, "")
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
+        std::fs::write(&transcript, "").map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
 
         if let Err(e) = crate::eval::case::copy_fixtures(&case, &evals_dir, &workdir) {
-            println!("[eval-harness] Warning: fixture copy failed for {}: {}", case.id, e);
+            println!(
+                "[eval-harness] Warning: fixture copy failed for {}: {}",
+                case.id, e
+            );
         }
 
         let result = crate::eval::scoring::run_all_checks(&case, &workdir, &transcript);
         let checks_json = serde_json::to_string(&result.checks).unwrap_or_default();
         let env_manifest = serde_json::to_string(&serde_json::json!({})).unwrap_or_default();
 
-        crate::eval::storage::save_eval_baseline(&conn, &args.skill, &case.id, &checks_json, &env_manifest)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+        crate::eval::storage::save_eval_baseline(
+            &conn,
+            &args.skill,
+            &case.id,
+            &checks_json,
+            &env_manifest,
+        )
+        .map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
 
         let _ = std::fs::remove_dir_all(&per_case_dir);
         created += 1;
@@ -1381,11 +1512,14 @@ fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
     }
 
     let _ = std::fs::remove_dir_all(state_dir.join("baseline_tmp"));
-    println!("[eval-harness] Baseline created: {} cases for skill '{}'", created, args.skill);
+    println!(
+        "[eval-harness] Baseline created: {} cases for skill '{}'",
+        created, args.skill
+    );
     Ok(())
 }
 
-fn run_diff(args: &EvalDiffArgs) -> Result<(), InterfaceError> {
+fn run_diff(_args: &EvalDiffArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
 
@@ -1394,11 +1528,17 @@ fn run_diff(args: &EvalDiffArgs) -> Result<(), InterfaceError> {
         return Ok(());
     }
 
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    let runs = crate::eval::storage::get_eval_runs(&conn, None, 1)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let runs = crate::eval::storage::get_eval_runs(&conn, None, 1).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
     let run = match runs.first() {
         Some(r) => r,
@@ -1408,13 +1548,20 @@ fn run_diff(args: &EvalDiffArgs) -> Result<(), InterfaceError> {
         }
     };
 
-    let cases = crate::eval::storage::get_eval_cases(&conn, &run.run_id)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let cases = crate::eval::storage::get_eval_cases(&conn, &run.run_id).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    let baselines = crate::eval::storage::get_eval_baselines(&conn, &run.skill)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let baselines = crate::eval::storage::get_eval_baselines(&conn, &run.skill).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    let baseline_map: std::collections::HashMap<String, serde_json::Value> = baselines.into_iter()
+    let baseline_map: std::collections::HashMap<String, serde_json::Value> = baselines
+        .into_iter()
         .filter_map(|b| {
             let case_id = b.get("case_id")?.as_str()?.to_string();
             Some((case_id, b))
@@ -1429,7 +1576,8 @@ fn run_diff(args: &EvalDiffArgs) -> Result<(), InterfaceError> {
 
     for case in &cases {
         let status = if case.passed { "PASS" } else { "FAIL" };
-        let baseline_status = baseline_map.get(&case.case_id)
+        let baseline_status = baseline_map
+            .get(&case.case_id)
             .and_then(|b| b.get("checks_json"))
             .map(|_| "BASELINED")
             .unwrap_or("NO_BASELINE");
@@ -1437,7 +1585,10 @@ fn run_diff(args: &EvalDiffArgs) -> Result<(), InterfaceError> {
         let regression = !case.passed && baseline_map.contains_key(&case.case_id);
         let marker = if regression { " ⚠️ REGRESSION" } else { "" };
 
-        println!("  {} — {} (baseline: {}){}", case.case_id, status, baseline_status, marker);
+        println!(
+            "  {} — {} (baseline: {}){}",
+            case.case_id, status, baseline_status, marker
+        );
 
         if regression {
             for check in &case.checks {
@@ -1462,11 +1613,18 @@ fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
         return Ok(());
     }
 
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    let runs = crate::eval::storage::get_eval_runs(&conn, args.skill.as_deref(), 1)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let runs =
+        crate::eval::storage::get_eval_runs(&conn, args.skill.as_deref(), 1).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
 
     match runs.first() {
         Some(run) => {
@@ -1485,9 +1643,12 @@ fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
                 println!("  Cost: ${:.4}", cost);
             }
 
-            let promoted = crate::eval::storage::get_promoted_status(&conn, &run.skill)
-                .unwrap_or(false);
-            println!("  Mode: {}", if promoted { "BLOCKING" } else { "WARN-ONLY" });
+            let promoted =
+                crate::eval::storage::get_promoted_status(&conn, &run.skill).unwrap_or(false);
+            println!(
+                "  Mode: {}",
+                if promoted { "BLOCKING" } else { "WARN-ONLY" }
+            );
         }
         None => {
             println!("[eval-harness] No runs found.");
@@ -1506,30 +1667,48 @@ fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
         return Ok(());
     }
 
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    let green_days = crate::eval::storage::get_green_days(&conn, &args.skill)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let green_days = crate::eval::storage::get_green_days(&conn, &args.skill).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    let already_promoted = crate::eval::storage::get_promoted_status(&conn, &args.skill)
-        .unwrap_or(false);
+    let already_promoted =
+        crate::eval::storage::get_promoted_status(&conn, &args.skill).unwrap_or(false);
 
     if already_promoted {
-        println!("[eval-harness] Skill '{}' is already in BLOCKING mode.", args.skill);
+        println!(
+            "[eval-harness] Skill '{}' is already in BLOCKING mode.",
+            args.skill
+        );
         return Ok(());
     }
 
     if green_days < 7 {
-        println!("[eval-harness] Cannot promote '{}': {} green days (need 7).", args.skill, green_days);
+        println!(
+            "[eval-harness] Cannot promote '{}': {} green days (need 7).",
+            args.skill, green_days
+        );
         println!("[eval-harness] Run eval daily and ensure all pass before promoting.");
         return Ok(());
     }
 
-    crate::eval::storage::set_promoted_status(&conn, &args.skill, true)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    crate::eval::storage::set_promoted_status(&conn, &args.skill, true).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
 
-    println!("[eval-harness] Skill '{}' promoted to BLOCKING mode ({} green days).", args.skill, green_days);
+    println!(
+        "[eval-harness] Skill '{}' promoted to BLOCKING mode ({} green days).",
+        args.skill, green_days
+    );
     println!("[eval-harness] Regressions will now exit with code 12.");
     Ok(())
 }
@@ -1537,104 +1716,148 @@ fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
 fn run_analyze(args: &EvalAnalyzeArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
-    
+
     if !db_path.exists() {
         println!("[eval-harness] No eval data found. Run eval first.");
         return Ok(());
     }
-    
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
-    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 100)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 100).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
     if runs.is_empty() {
-        println!("[eval-harness] No eval runs found for skill '{}'", args.skill);
+        println!(
+            "[eval-harness] No eval runs found for skill '{}'",
+            args.skill
+        );
         return Ok(());
     }
-    
+
     let total_runs = runs.len();
     let pass_count = runs.iter().filter(|r| r.verdict == "PASS").count();
     let pass_rate = (pass_count as f64 / total_runs as f64) * 100.0;
     let avg_duration = runs.iter().filter_map(|r| r.duration_ms).sum::<u64>() / total_runs as u64;
     let total_cost: f64 = runs.iter().filter_map(|r| r.total_cost_usd).sum();
-    
+
     println!("[eval-harness] Analysis for skill '{}'", args.skill);
     println!("  Total runs: {}", total_runs);
     println!("  Pass rate: {:.1}%", pass_rate);
     println!("  Avg duration: {}ms", avg_duration);
     println!("  Total cost: ${:.2}", total_cost);
-    
-    let goals = crate::eval::storage::get_eval_goals(&conn, Some(&args.skill))
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
+
+    let goals = crate::eval::storage::get_eval_goals(&conn, Some(&args.skill)).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
     if !goals.is_empty() {
         println!("\n[eval-harness] Goals:");
         for goal in &goals {
-            let current = goal.get("current_value").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let target = goal.get("target_metric").and_then(|v| v.as_str()).unwrap_or("N/A");
-            let desc = goal.get("description").and_then(|v| v.as_str()).unwrap_or("");
+            let current = goal
+                .get("current_value")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let target = goal
+                .get("target_metric")
+                .and_then(|v| v.as_str())
+                .unwrap_or("N/A");
+            let desc = goal
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             println!("  - {}: {} (current: {:.1})", desc, target, current);
         }
     }
-    
-    let suggestions = crate::eval::storage::get_eval_suggestions(&conn, Some(&args.skill), Some("pending"))
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
+
+    let suggestions =
+        crate::eval::storage::get_eval_suggestions(&conn, Some(&args.skill), Some("pending"))
+            .map_err(|e| {
+                InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                    std::io::Error::other(e),
+                ))
+            })?;
+
     if !suggestions.is_empty() {
         println!("\n[eval-harness] Pending suggestions:");
         for suggestion in &suggestions {
-            let title = suggestion.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let priority = suggestion.get("priority").and_then(|v| v.as_str()).unwrap_or("");
+            let title = suggestion
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let priority = suggestion
+                .get("priority")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             println!("  [{}] {}", priority.to_uppercase(), title);
         }
     }
-    
+
     Ok(())
 }
 
 fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
-    
+
     if !db_path.exists() {
         println!("[eval-harness] No eval data found. Run eval first.");
         return Ok(());
     }
-    
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
-    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 30)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 30).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
     if runs.is_empty() {
         println!("[eval-harness] No eval data for suggestions. Run eval first.");
         return Ok(());
     }
-    
+
     let total_runs = runs.len();
     let pass_count = runs.iter().filter(|r| r.verdict == "PASS").count();
     let pass_rate = (pass_count as f64 / total_runs as f64) * 100.0;
-    
+
     println!("[eval-harness] Suggestions for skill '{}'", args.skill);
-    
+
     if pass_rate < 95.0 {
         println!("\n  HIGH PRIORITY:");
-        println!("  1. [Fix] Improve pass rate (current: {:.1}%, target: 95%)", pass_rate);
+        println!(
+            "  1. [Fix] Improve pass rate (current: {:.1}%, target: 95%)",
+            pass_rate
+        );
         println!("     Reason: Below target pass rate");
         println!("     Impact: Fewer regressions");
     }
-    
+
     let avg_duration = runs.iter().filter_map(|r| r.duration_ms).sum::<u64>() / total_runs as u64;
     if avg_duration > 5000 {
         println!("\n  MEDIUM PRIORITY:");
-        println!("  2. [Optimize] Reduce eval time (current: {}ms)", avg_duration);
+        println!(
+            "  2. [Optimize] Reduce eval time (current: {}ms)",
+            avg_duration
+        );
         println!("     Reason: Slow evals impact developer workflow");
         println!("     Impact: Faster feedback loop");
     }
-    
+
     let total_cost: f64 = runs.iter().filter_map(|r| r.total_cost_usd).sum();
     if total_cost > 10.0 {
         println!("\n  LOW PRIORITY:");
@@ -1642,7 +1865,7 @@ fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
         println!("     Reason: High eval cost");
         println!("     Impact: Lower operational cost");
     }
-    
+
     Ok(())
 }
 
@@ -1650,7 +1873,7 @@ fn resolve_skills_root() -> std::path::PathBuf {
     if let Ok(root) = std::env::var("OPENCODE_SKILLS_ROOT") {
         return std::path::PathBuf::from(root);
     }
-    
+
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let mut dir = cwd.clone();
     loop {
@@ -1662,7 +1885,7 @@ fn resolve_skills_root() -> std::path::PathBuf {
             break;
         }
     }
-    
+
     get_home_dir()
         .unwrap_or(cwd)
         .join(".config/opencode/skills")
@@ -2354,7 +2577,11 @@ fn print_query_table(table: &QueryTable) {
 }
 
 fn md_proof(value: i64) -> &'static str {
-    if value == 1 { "yes" } else { "no" }
+    if value == 1 {
+        "yes"
+    } else {
+        "no"
+    }
 }
 
 fn md_opt(value: &Option<String>) -> &str {
@@ -2450,6 +2677,407 @@ fn print_row(values: &[String], widths: &[usize]) {
     println!();
 }
 
+fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+
+    if !db_path.exists() {
+        std::fs::create_dir_all(&state_dir).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e))
+        })?;
+    }
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let goal_id = crate::eval::storage::create_eval_goal(
+        &conn,
+        &args.skill,
+        &args.goal_type,
+        &args.description,
+        &args.target,
+    )
+    .map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    println!("[eval-harness] Goal created: {}", goal_id);
+    println!("  Skill: {}", args.skill);
+    println!("  Type: {}", args.goal_type);
+    println!("  Description: {}", args.description);
+    println!("  Target: {}", args.target);
+
+    Ok(())
+}
+
+fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let case_id = args.case.as_deref();
+    let scores = crate::eval::storage::get_quality_scores(&conn, None, case_id).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    if scores.is_empty() {
+        println!(
+            "[eval-harness] No quality scores found for skill '{}'",
+            args.skill
+        );
+        return Ok(());
+    }
+
+    println!("[eval-harness] Quality scores for skill '{}'", args.skill);
+
+    for score in &scores {
+        let case = score.get("case_id").and_then(|v| v.as_str()).unwrap_or("");
+        let prompt = score
+            .get("prompt_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let response = score
+            .get("response_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let context = score
+            .get("context_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let overall = score
+            .get("overall_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let feedback = score.get("feedback").and_then(|v| v.as_str()).unwrap_or("");
+
+        println!("  Case: {}", case);
+        println!("    Prompt: {:.1}%", prompt);
+        println!("    Response: {:.1}%", response);
+        println!("    Context: {:.1}%", context);
+        println!("    Overall: {:.1}%", overall);
+        println!("    Feedback: {}", feedback);
+    }
+
+    Ok(())
+}
+
+fn run_trend(args: &EvalTrendArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), args.last as i64)
+        .map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
+
+    if runs.is_empty() {
+        println!("[eval-harness] No runs found for skill '{}'", args.skill);
+        return Ok(());
+    }
+
+    let total = runs.len();
+    let pass_count = runs.iter().filter(|r| r.verdict == "PASS").count();
+    let pass_rate = (pass_count as f64 / total as f64) * 100.0;
+
+    println!(
+        "[eval-harness] Trend for '{}' (last {} runs)",
+        args.skill, total
+    );
+    println!("  Pass rate: {:.1}% ({}/{})", pass_rate, pass_count, total);
+    println!();
+
+    for run in runs.iter().take(10) {
+        let icon = if run.verdict == "PASS" {
+            "PASS"
+        } else {
+            "FAIL"
+        };
+        println!(
+            "  {} {} — {}/{}",
+            icon,
+            &run.run_id[..19.min(run.run_id.len())],
+            run.pass,
+            run.total
+        );
+    }
+
+    Ok(())
+}
+
+fn run_accept(args: &EvalAcceptArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 1).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let run = match runs.first() {
+        Some(r) => r,
+        None => {
+            println!("[eval-harness] No runs found for skill '{}'", args.skill);
+            return Ok(());
+        }
+    };
+
+    let cases = crate::eval::storage::get_eval_cases(&conn, &run.run_id).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let case = match cases.iter().find(|c| c.case_id == args.case) {
+        Some(c) => c,
+        None => {
+            println!(
+                "[eval-harness] Case '{}' not found in latest run",
+                args.case
+            );
+            return Ok(());
+        }
+    };
+
+    let checks_json = serde_json::to_string(&case.checks).unwrap_or_default();
+    let env_manifest = serde_json::to_string(&serde_json::json!({})).unwrap_or_default();
+
+    crate::eval::storage::save_eval_baseline(
+        &conn,
+        &args.skill,
+        &args.case,
+        &checks_json,
+        &env_manifest,
+    )
+    .map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    println!(
+        "[eval-harness] Accepted new baseline for '{}::{}'",
+        args.skill, args.case
+    );
+    Ok(())
+}
+
+fn run_apply(args: &EvalApplyArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 1).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let run = match runs.first() {
+        Some(r) => r,
+        None => {
+            println!("[eval-harness] No runs found for skill '{}'", args.skill);
+            return Ok(());
+        }
+    };
+
+    let cases = crate::eval::storage::get_eval_cases(&conn, &run.run_id).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let failed_cases: Vec<_> = cases.iter().filter(|c| !c.passed).collect();
+
+    if failed_cases.is_empty() {
+        println!("[eval-harness] No failed cases in latest run — nothing to apply.");
+        return Ok(());
+    }
+
+    println!("[eval-harness] Fix proposals for skill '{}':", args.skill);
+    println!();
+
+    for case in &failed_cases {
+        println!("  Case: {}", case.case_id);
+        for check in &case.checks {
+            if !check.passed {
+                if let Some(ref hint) = check.diff_hint {
+                    println!("    Fix: {}", hint);
+                }
+                if let Some(ref expected) = check.expected {
+                    println!("    Expected: {}", expected);
+                }
+                if let Some(ref actual) = check.actual {
+                    println!("    Actual: {}", actual);
+                }
+            }
+        }
+        println!();
+    }
+
+    Ok(())
+}
+
+fn run_ab(args: &EvalAbArgs) -> Result<(), InterfaceError> {
+    let state_dir = get_state_dir();
+    let db_path = state_dir.join("harness.db");
+
+    if !db_path.exists() {
+        println!("[eval-harness] No eval data found. Run eval first.");
+        return Ok(());
+    }
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+            std::io::Error::other(e),
+        ))
+    })?;
+
+    let runs_a =
+        crate::eval::storage::get_eval_runs(&conn, Some(&args.skill_a), 1).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
+    let runs_b =
+        crate::eval::storage::get_eval_runs(&conn, Some(&args.skill_b), 1).map_err(|e| {
+            InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(
+                std::io::Error::other(e),
+            ))
+        })?;
+
+    let run_a = match runs_a.first() {
+        Some(r) => r,
+        None => {
+            println!("[eval-harness] No runs found for skill '{}'", args.skill_a);
+            return Ok(());
+        }
+    };
+    let run_b = match runs_b.first() {
+        Some(r) => r,
+        None => {
+            println!("[eval-harness] No runs found for skill '{}'", args.skill_b);
+            return Ok(());
+        }
+    };
+
+    let rate_a = if run_a.total > 0 {
+        run_a.pass as f64 / run_a.total as f64 * 100.0
+    } else {
+        0.0
+    };
+    let rate_b = if run_b.total > 0 {
+        run_b.pass as f64 / run_b.total as f64 * 100.0
+    } else {
+        0.0
+    };
+
+    println!("[eval-harness] A/B Comparison");
+    println!();
+    println!(
+        "  {:20} {:>10} {:>10}",
+        "Metric", args.skill_a, args.skill_b
+    );
+    println!("  {:20} {:>10} {:>10}", "----", "----", "----");
+    println!(
+        "  {:20} {:>10} {:>10}",
+        "Pass rate",
+        format!("{:.1}%", rate_a),
+        format!("{:.1}%", rate_b)
+    );
+    println!(
+        "  {:20} {:>10} {:>10}",
+        "Pass/Total",
+        format!("{}/{}", run_a.pass, run_a.total),
+        format!("{}/{}", run_b.pass, run_b.total)
+    );
+    println!(
+        "  {:20} {:>10} {:>10}",
+        "Verdict", run_a.verdict, run_b.verdict
+    );
+    println!();
+
+    let winner = if rate_a > rate_b {
+        &args.skill_a
+    } else if rate_b > rate_a {
+        &args.skill_b
+    } else {
+        "TIE"
+    };
+    if winner == "TIE" {
+        println!("  Result: TIE ({:.1}% vs {:.1}%)", rate_a, rate_b);
+    } else {
+        println!(
+            "  Winner: {} ({:.1}% vs {:.1}%)",
+            winner,
+            rate_a.max(rate_b),
+            rate_a.min(rate_b)
+        );
+    }
+
+    Ok(())
+}
+
+fn run_rebaseline(args: &EvalRebaselineArgs) -> Result<(), InterfaceError> {
+    println!("[eval-harness] Rebaselining skill '{}'...", args.skill);
+    run_baseline(&EvalBaselineArgs {
+        skill: args.skill.clone(),
+    })?;
+    println!("[eval-harness] Rebaseline complete.");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2525,269 +3153,3 @@ mod tests {
         assert!(matrix_help.contains("--numeric"));
     }
 }
-
-fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
-    let state_dir = get_state_dir();
-    let db_path = state_dir.join("harness.db");
-    
-    if !db_path.exists() {
-        std::fs::create_dir_all(&state_dir)
-            .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(e)))?;
-    }
-    
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
-    let goal_id = crate::eval::storage::create_eval_goal(
-        &conn, &args.skill, &args.goal_type, &args.description, &args.target
-    ).map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
-    println!("[eval-harness] Goal created: {}", goal_id);
-    println!("  Skill: {}", args.skill);
-    println!("  Type: {}", args.goal_type);
-    println!("  Description: {}", args.description);
-    println!("  Target: {}", args.target);
-    
-    Ok(())
-}
-
-fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
-    let state_dir = get_state_dir();
-    let db_path = state_dir.join("harness.db");
-    
-    if !db_path.exists() {
-        println!("[eval-harness] No eval data found. Run eval first.");
-        return Ok(());
-    }
-    
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
-    let case_id = args.case.as_deref();
-    let scores = crate::eval::storage::get_quality_scores(&conn, None, case_id)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    
-    if scores.is_empty() {
-        println!("[eval-harness] No quality scores found for skill '{}'", args.skill);
-        return Ok(());
-    }
-    
-    println!("[eval-harness] Quality scores for skill '{}'", args.skill);
-    
-    for score in &scores {
-        let case = score.get("case_id").and_then(|v| v.as_str()).unwrap_or("");
-        let prompt = score.get("prompt_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        let response = score.get("response_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        let context = score.get("context_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        let overall = score.get("overall_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        let feedback = score.get("feedback").and_then(|v| v.as_str()).unwrap_or("");
-        
-        println!("  Case: {}", case);
-        println!("    Prompt: {:.1}%", prompt);
-        println!("    Response: {:.1}%", response);
-        println!("    Context: {:.1}%", context);
-        println!("    Overall: {:.1}%", overall);
-        println!("    Feedback: {}", feedback);
-    }
-    
-    Ok(())
-}
-
-fn run_trend(args: &EvalTrendArgs) -> Result<(), InterfaceError> {
-    let state_dir = get_state_dir();
-    let db_path = state_dir.join("harness.db");
-
-    if !db_path.exists() {
-        println!("[eval-harness] No eval data found. Run eval first.");
-        return Ok(());
-    }
-
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), args.last as i64)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    if runs.is_empty() {
-        println!("[eval-harness] No runs found for skill '{}'", args.skill);
-        return Ok(());
-    }
-
-    let total = runs.len();
-    let pass_count = runs.iter().filter(|r| r.verdict == "PASS").count();
-    let pass_rate = (pass_count as f64 / total as f64) * 100.0;
-
-    println!("[eval-harness] Trend for '{}' (last {} runs)", args.skill, total);
-    println!("  Pass rate: {:.1}% ({}/{})", pass_rate, pass_count, total);
-    println!();
-
-    for run in runs.iter().take(10) {
-        let icon = if run.verdict == "PASS" { "PASS" } else { "FAIL" };
-        println!("  {} {} — {}/{}", icon, &run.run_id[..19.min(run.run_id.len())], run.pass, run.total);
-    }
-
-    Ok(())
-}
-
-fn run_accept(args: &EvalAcceptArgs) -> Result<(), InterfaceError> {
-    let state_dir = get_state_dir();
-    let db_path = state_dir.join("harness.db");
-
-    if !db_path.exists() {
-        println!("[eval-harness] No eval data found. Run eval first.");
-        return Ok(());
-    }
-
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 1)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let run = match runs.first() {
-        Some(r) => r,
-        None => {
-            println!("[eval-harness] No runs found for skill '{}'", args.skill);
-            return Ok(());
-        }
-    };
-
-    let cases = crate::eval::storage::get_eval_cases(&conn, &run.run_id)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let case = match cases.iter().find(|c| c.case_id == args.case) {
-        Some(c) => c,
-        None => {
-            println!("[eval-harness] Case '{}' not found in latest run", args.case);
-            return Ok(());
-        }
-    };
-
-    let checks_json = serde_json::to_string(&case.checks).unwrap_or_default();
-    let env_manifest = serde_json::to_string(&serde_json::json!({})).unwrap_or_default();
-
-    crate::eval::storage::save_eval_baseline(&conn, &args.skill, &args.case, &checks_json, &env_manifest)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    println!("[eval-harness] Accepted new baseline for '{}::{}'", args.skill, args.case);
-    Ok(())
-}
-
-fn run_apply(args: &EvalApplyArgs) -> Result<(), InterfaceError> {
-    let state_dir = get_state_dir();
-    let db_path = state_dir.join("harness.db");
-
-    if !db_path.exists() {
-        println!("[eval-harness] No eval data found. Run eval first.");
-        return Ok(());
-    }
-
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let runs = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill), 1)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let run = match runs.first() {
-        Some(r) => r,
-        None => {
-            println!("[eval-harness] No runs found for skill '{}'", args.skill);
-            return Ok(());
-        }
-    };
-
-    let cases = crate::eval::storage::get_eval_cases(&conn, &run.run_id)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let failed_cases: Vec<_> = cases.iter().filter(|c| !c.passed).collect();
-
-    if failed_cases.is_empty() {
-        println!("[eval-harness] No failed cases in latest run — nothing to apply.");
-        return Ok(());
-    }
-
-    println!("[eval-harness] Fix proposals for skill '{}':", args.skill);
-    println!();
-
-    for case in &failed_cases {
-        println!("  Case: {}", case.case_id);
-        for check in &case.checks {
-            if !check.passed {
-                if let Some(ref hint) = check.diff_hint {
-                    println!("    Fix: {}", hint);
-                }
-                if let Some(ref expected) = check.expected {
-                    println!("    Expected: {}", expected);
-                }
-                if let Some(ref actual) = check.actual {
-                    println!("    Actual: {}", actual);
-                }
-            }
-        }
-        println!();
-    }
-
-    Ok(())
-}
-
-fn run_ab(args: &EvalAbArgs) -> Result<(), InterfaceError> {
-    let state_dir = get_state_dir();
-    let db_path = state_dir.join("harness.db");
-
-    if !db_path.exists() {
-        println!("[eval-harness] No eval data found. Run eval first.");
-        return Ok(());
-    }
-
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let runs_a = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill_a), 1)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-    let runs_b = crate::eval::storage::get_eval_runs(&conn, Some(&args.skill_b), 1)
-        .map_err(|e| InterfaceError::Infrastructure(crate::infrastructure::HarnessInfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-    let run_a = match runs_a.first() {
-        Some(r) => r,
-        None => {
-            println!("[eval-harness] No runs found for skill '{}'", args.skill_a);
-            return Ok(());
-        }
-    };
-    let run_b = match runs_b.first() {
-        Some(r) => r,
-        None => {
-            println!("[eval-harness] No runs found for skill '{}'", args.skill_b);
-            return Ok(());
-        }
-    };
-
-    let rate_a = if run_a.total > 0 { run_a.pass as f64 / run_a.total as f64 * 100.0 } else { 0.0 };
-    let rate_b = if run_b.total > 0 { run_b.pass as f64 / run_b.total as f64 * 100.0 } else { 0.0 };
-
-    println!("[eval-harness] A/B Comparison");
-    println!();
-    println!("  {:20} {:>10} {:>10}", "Metric", args.skill_a, args.skill_b);
-    println!("  {:20} {:>10} {:>10}", "----", "----", "----");
-    println!("  {:20} {:>10} {:>10}", "Pass rate", format!("{:.1}%", rate_a), format!("{:.1}%", rate_b));
-    println!("  {:20} {:>10} {:>10}", "Pass/Total", format!("{}/{}", run_a.pass, run_a.total), format!("{}/{}", run_b.pass, run_b.total));
-    println!("  {:20} {:>10} {:>10}", "Verdict", run_a.verdict, run_b.verdict);
-    println!();
-
-    let winner = if rate_a > rate_b { &args.skill_a } else if rate_b > rate_a { &args.skill_b } else { "TIE" };
-    if winner == "TIE" {
-        println!("  Result: TIE ({:.1}% vs {:.1}%)", rate_a, rate_b);
-    } else {
-        println!("  Winner: {} ({:.1}% vs {:.1}%)", winner, rate_a.max(rate_b), rate_a.min(rate_b));
-    }
-
-    Ok(())
-}
-
-fn run_rebaseline(args: &EvalRebaselineArgs) -> Result<(), InterfaceError> {
-    println!("[eval-harness] Rebaselining skill '{}'...", args.skill);
-    run_baseline(&EvalBaselineArgs { skill: args.skill.clone() })?;
-    println!("[eval-harness] Rebaseline complete.");
-    Ok(())
-}
-

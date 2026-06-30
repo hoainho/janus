@@ -10,6 +10,7 @@
 
 <br>
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-8B5CF6.svg?style=flat-square&labelColor=0B0E14)](LICENSE)
 [![Rust](https://img.shields.io/badge/Built_with-Rust-22D3EE.svg?style=flat-square&labelColor=0B0E14&logo=rust)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/macOS_·_Linux_·_Windows-6366F1.svg?style=flat-square&labelColor=0B0E14)](#-install)
 [![npm](https://img.shields.io/npm/v/@nano-step/janus.svg?style=flat-square&labelColor=0B0E14&color=10B981&label=npm)](https://www.npmjs.com/package/@nano-step/janus)
@@ -445,7 +446,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and PRs welcome at
 
 ## 📄 License
 
-© 2025–2026 **Hoài Nhớ**. _License to be announced._
+[MIT](LICENSE) © 2025–2026 **Hoài Nhớ**.
 
 <div align="center">
 <br>

@@ -32,7 +32,7 @@ pub fn render_junit(summary: &crate::eval::stats::RunSummary) -> String {
         "<testsuite name=\"{}\" tests=\"{}\" failures=\"{}\" errors=\"0\" time=\"0\">\n",
         summary.skill, summary.total, summary.regression_count
     ));
-    
+
     for regression in &summary.regressions {
         xml.push_str(&format!(
             "  <testcase name=\"{}\" classname=\"{}\" time=\"0\">\n",
@@ -44,7 +44,7 @@ pub fn render_junit(summary: &crate::eval::stats::RunSummary) -> String {
         ));
         xml.push_str("  </testcase>\n");
     }
-    
+
     xml.push_str("</testsuite>\n");
     xml
 }
@@ -83,6 +83,6 @@ pub fn render_sarif(summary: &crate::eval::stats::RunSummary, version: &str) -> 
             }]
         }]
     });
-    
+
     serde_json::to_string_pretty(&sarif).unwrap_or_default()
 }

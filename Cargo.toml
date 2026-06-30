@@ -4,4 +4,5 @@ members = ["crates/harness-cli"]
 
 [workspace.package]
 edition = "2021"
+license = "MIT"
 repository = "https://github.com/nano-step/janus"

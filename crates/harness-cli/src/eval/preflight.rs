@@ -1,5 +1,3 @@
-use std::path::Path;
-
 /// Preflight check results
 #[derive(Debug)]
 pub struct PreflightResult {
@@ -37,9 +35,33 @@ fn check_api_key() -> bool {
 pub fn format_preflight(result: &PreflightResult) -> String {
     let mut lines = Vec::new();
     lines.push("Preflight checks:".to_string());
-    lines.push(format!("  opencode: {}", if result.opencode_available { "✓" } else { "✗" }));
-    lines.push(format!("  API key: {}", if result.api_key_available { "✓" } else { "✗" }));
-    lines.push(format!("  yq: {}", if result.yq_available { "✓" } else { "✗" }));
-    lines.push(format!("  python3: {}", if result.python_available { "✓" } else { "✗" }));
+    lines.push(format!(
+        "  opencode: {}",
+        if result.opencode_available {
+            "✓"
+        } else {
+            "✗"
+        }
+    ));
+    lines.push(format!(
+        "  API key: {}",
+        if result.api_key_available {
+            "✓"
+        } else {
+            "✗"
+        }
+    ));
+    lines.push(format!(
+        "  yq: {}",
+        if result.yq_available { "✓" } else { "✗" }
+    ));
+    lines.push(format!(
+        "  python3: {}",
+        if result.python_available {
+            "✓"
+        } else {
+            "✗"
+        }
+    ));
     lines.join("\n")
 }

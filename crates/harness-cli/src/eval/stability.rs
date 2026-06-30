@@ -11,10 +11,10 @@ pub struct StabilityResult {
 
 /// Perform stability check by running case multiple times
 pub fn check_stability(
-    case_id: &str,
+    _case_id: &str,
     workdir: &std::path::Path,
-    prompt: &str,
-    skills_loaded: &[String],
+    _prompt: &str,
+    _skills_loaded: &[String],
     samples: usize,
 ) -> StabilityResult {
     if samples <= 1 {
@@ -25,25 +25,25 @@ pub fn check_stability(
             performed: false,
         };
     }
-    
+
     let mut hashes = Vec::new();
-    
+
     for i in 0..samples {
         // Create sample directory
         let sample_dir = workdir.join(format!("stability/sample-{}", i + 1));
         std::fs::create_dir_all(&sample_dir).unwrap_or_default();
-        
+
         // Run case
-        let transcript = sample_dir.join("transcript.jsonl");
+        let _transcript = sample_dir.join("transcript.jsonl");
         // TODO: Actually run the case and hash results
         let hash = format!("hash_{}", i);
         hashes.push(hash);
     }
-    
+
     // Check if all hashes are identical
     let first = &hashes[0];
     let byte_identical = hashes.iter().all(|h| h == first);
-    
+
     StabilityResult {
         samples,
         byte_identical,
