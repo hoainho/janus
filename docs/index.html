@@ -418,11 +418,15 @@
                     <div class="terminal-dot green"></div>
                 </div>
                 <div class="terminal-content">
-                    <div class="terminal-line"><span class="prompt">$</span> <span class="command">harness-cli eval run --skill=code-reviewer</span></div>
+                    <div class="terminal-line"><span class="prompt">$</span> <span class="command">harness-cli intake --type feature --summary "Add OAuth login" --lane normal</span></div>
+                    <div class="terminal-line"><span class="output">Intake #1 recorded.</span></div>
+                    <div class="terminal-line"><span class="prompt">$</span> <span class="command">harness-cli story add --id US-001 --title "Login flow" --lane normal</span></div>
+                    <div class="terminal-line"><span class="output">Story US-001 added.</span></div>
+                    <div class="terminal-line"><span class="prompt">$</span> <span class="command">harness-cli eval run --skill=code-reviewer --mode=2tier</span></div>
                     <div class="terminal-line"><span class="output">[eval-harness] skill=code-reviewer cases=3</span></div>
                     <div class="terminal-line"><span class="output">[eval-harness] Case 1/3 review-must-flag-sql-injection</span></div>
                     <div class="terminal-line"><span class="success">[eval-harness]   PASS</span></div>
-                    <div class="terminal-line"><span class="highlight">[eval-harness] PASS 3/3 - 0 regressions detected</span></div>
+                    <div class="terminal-line"><span class="highlight">[eval-harness] PASS 3/3 — 0 regressions detected</span></div>
                 </div>
             </div>
         </div>
@@ -434,19 +438,34 @@
             <h2 class="section-title">Why Janus?</h2>
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">✓</div>
-                    <h3>ĐÚNG</h3>
-                    <p>95% regression detection rate. Catch bugs before they reach production. Goal-driven quality gates ensure every change meets your standards.</p>
+                    <div class="feature-icon">🛡️</div>
+                    <h3>9 Quality Gates</h3>
+                    <p>Pre-flight, AC extraction, recall, matrix, evidence, review, push permission, Jira tier, reconciliation. Every change passes through the right gates.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
-                    <h3>NHANH</h3>
-                    <p>84x faster overhead than bash-based harnesses. 93% time savings per change. Native Rust performance with zero dependencies.</p>
+                    <h3>84x Faster</h3>
+                    <p>Native Rust performance. 72ms overhead vs 6,050ms for bash-based harnesses. Zero dependencies — single binary works everywhere.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">$</div>
-                    <h3>RẺ</h3>
-                    <p>90% token savings. $0.0012 per eval case. Budget enforcement prevents runaway costs. Track spending with SQLite.</p>
+                    <div class="feature-icon">🎯</div>
+                    <h3>14 Eval Commands</h3>
+                    <p>Run, baseline, diff, status, promote, trend, accept, apply, A/B compare, rebaseline, analyze, suggest, goal, quality — everything you need.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>3 Eval Modes</h3>
+                    <p>Smoke (fast, 1 sample), Full (thorough, 3 samples), 2-tier (smoke first, escalate failures). Choose the right balance for your workflow.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>LLM Judge</h3>
+                    <p>Evaluate artifacts using your current model. Majority voting with configurable samples. No external API keys needed.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Goal-Driven</h3>
+                    <p>Set targets, track progress, get suggestions. The system learns from your data and proposes improvements automatically.</p>
                 </div>
             </div>
         </div>
@@ -468,19 +487,49 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Skill regression testing</td>
-                            <td><span class="check">✓</span></td>
-                            <td><span class="check">✓</span></td>
-                            <td><span class="check">✓</span></td>
+                            <td>Quality gates</td>
+                            <td>0</td>
+                            <td>1-3</td>
+                            <td><span class="highlight">9 gates</span></td>
                         </tr>
                         <tr>
-                            <td>Context evaluation</td>
+                            <td>Eval commands</td>
+                            <td>6</td>
+                            <td>2-4</td>
+                            <td><span class="highlight">14 commands</span></td>
+                        </tr>
+                        <tr>
+                            <td>Check kinds</td>
+                            <td>6</td>
+                            <td>3-5</td>
+                            <td><span class="highlight">9 kinds</span></td>
+                        </tr>
+                        <tr>
+                            <td>Attribution classes</td>
+                            <td>4</td>
+                            <td>1-2</td>
+                            <td><span class="highlight">5 classes</span></td>
+                        </tr>
+                        <tr>
+                            <td>Eval modes</td>
+                            <td>1</td>
+                            <td>1-2</td>
+                            <td><span class="highlight">3 modes</span></td>
+                        </tr>
+                        <tr>
+                            <td>LLM judge</td>
                             <td><span class="cross">✗</span></td>
                             <td><span class="cross">✗</span></td>
                             <td><span class="check">✓</span></td>
                         </tr>
                         <tr>
-                            <td>Goal-driven improvement</td>
+                            <td>Stochastic pass@k</td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td>Cross-skill attribution</td>
                             <td><span class="cross">✗</span></td>
                             <td><span class="cross">✗</span></td>
                             <td><span class="check">✓</span></td>
@@ -493,18 +542,6 @@
                         </tr>
                         <tr>
                             <td>SQLite storage</td>
-                            <td><span class="cross">✗</span></td>
-                            <td><span class="cross">✗</span></td>
-                            <td><span class="check">✓</span></td>
-                        </tr>
-                        <tr>
-                            <td>Cross-platform</td>
-                            <td>Partial</td>
-                            <td>Partial</td>
-                            <td><span class="check">Full</span></td>
-                        </tr>
-                        <tr>
-                            <td>npm/npx install</td>
                             <td><span class="cross">✗</span></td>
                             <td><span class="cross">✗</span></td>
                             <td><span class="check">✓</span></td>
