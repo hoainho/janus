@@ -1,29 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" role="img" aria-label="Janus">
   <defs>
-    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0056B3;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#046307;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#D2042D;stop-opacity:1" />
+    <linearGradient id="jBrand" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="0.5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="jPast" x1="40" y1="70" x2="128" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="jFuture" x1="128" y1="70" x2="216" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="jSeam" x1="128" y1="60" x2="128" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A5B4FC"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <radialGradient id="jGlow" cx="128" cy="118" r="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  
-  <!-- Outer circle -->
-  <circle cx="100" cy="100" r="80" fill="none" stroke="url(#logoGrad)" stroke-width="8" filter="url(#glow)"/>
-  
-  <!-- Diamond shape (Janus two-faced symbol) -->
-  <path d="M 60 100 L 100 60 L 140 100 L 100 140 Z" fill="url(#logoGrad)" filter="url(#glow)"/>
-  
-  <!-- Center circle (unity) -->
-  <circle cx="100" cy="100" r="20" fill="url(#logoGrad)" filter="url(#glow)"/>
-  
-  <!-- Two lines representing past and future -->
-  <line x1="100" y1="40" x2="100" y2="80" stroke="url(#logoGrad)" stroke-width="4" stroke-linecap="round"/>
-  <line x1="100" y1="120" x2="100" y2="160" stroke="url(#logoGrad)" stroke-width="4" stroke-linecap="round"/>
+
+  <rect x="0" y="0" width="256" height="256" fill="url(#jGlow)" opacity="0.7"/>
+
+  <!-- squircle container -->
+  <rect x="26" y="26" width="204" height="204" rx="54" fill="#0B0E14" stroke="url(#jBrand)" stroke-width="6"/>
+  <rect x="26" y="26" width="204" height="204" rx="54" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="1.5"/>
+
+  <!-- gateway arch behind the faces -->
+  <path d="M70 192 V126 a58 58 0 0 1 116 0 V192" fill="none" stroke="url(#jBrand)" stroke-width="10" stroke-linecap="round" opacity="0.22"/>
+
+  <!-- LEFT face — looking to the past (indigo) -->
+  <path d="M118 76
+           C100 76 88 84 80 100
+           C74 112 70 118 62 126
+           L54 132
+           C66 138 74 138 74 144
+           C70 152 66 156 72 162
+           C78 168 84 174 100 184
+           L118 184 Z"
+        fill="url(#jPast)"/>
+  <circle cx="98" cy="116" r="5.5" fill="#0B0E14"/>
+
+  <!-- RIGHT face — looking to the future (cyan), mirror of left -->
+  <path d="M138 76
+           C156 76 168 84 176 100
+           C182 112 186 118 194 126
+           L202 132
+           C190 138 182 138 182 144
+           C186 152 190 156 184 162
+           C178 168 172 174 156 184
+           L138 184 Z"
+        fill="url(#jFuture)"/>
+  <circle cx="158" cy="116" r="5.5" fill="#0B0E14"/>
+
+  <!-- central gate seam (the threshold the two faces share) -->
+  <rect x="124" y="74" width="8" height="112" rx="4" fill="#0B0E14"/>
+  <rect x="126.5" y="76" width="3" height="108" rx="1.5" fill="url(#jSeam)"/>
+
+  <!-- quality-gate PASS node on the threshold -->
+  <circle cx="128" cy="176" r="18" fill="#0B0E14" stroke="#10B981" stroke-width="4"/>
+  <path d="M119.5 176 l6 6 l11 -13" fill="none" stroke="#10B981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

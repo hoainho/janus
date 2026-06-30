@@ -1,32 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" fill="none" role="img" aria-label="JANUS — The Unified Eval Engine">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    <linearGradient id="wBrand" x1="0" y1="0" x2="760" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="0.5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="wPast" x1="40" y1="70" x2="128" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#818CF8"/><stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="wFuture" x1="128" y1="70" x2="216" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67E8F9"/><stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="wSeam" x1="128" y1="60" x2="128" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A5B4FC"/><stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  
-  <!-- J -->
-  <path d="M20 20 L50 20 L50 80 Q50 100 30 100 L20 100" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
-  
-  <!-- A -->
-  <path d="M70 100 L95 20 L120 100" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
-  <line x1="78" y1="65" x2="112" y2="65" stroke="url(#grad)" stroke-width="6"/>
-  
-  <!-- N -->
-  <path d="M135 100 L135 20 L175 100 L175 20" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
-  
-  <!-- U -->
-  <path d="M195 20 L195 80 Q195 100 220 100 Q245 100 245 80 L245 20" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
-  
-  <!-- S -->
-  <path d="M275 30 Q260 20 260 40 Q260 60 280 60 Q300 60 300 80 Q300 100 275 100 L265 100" stroke="url(#grad)" stroke-width="8" fill="none" stroke-linecap="round"/>
-  
-  <!-- Tagline -->
-  <text x="320" y="55" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#6B7280" font-weight="500">The Unified EVAL Engine</text>
-  <text x="320" y="75" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#6B7280" font-weight="500">for AI-Assisted Development</text>
-  
-  <!-- Accent dot -->
-  <circle cx="310" cy="60" r="4" fill="url(#grad)"/>
+
+  <!-- ===== mark ===== -->
+  <g transform="translate(10,18) scale(0.64)">
+    <rect x="26" y="26" width="204" height="204" rx="54" fill="#0B0E14" stroke="url(#wBrand)" stroke-width="6"/>
+    <path d="M70 192 V126 a58 58 0 0 1 116 0 V192" fill="none" stroke="url(#wBrand)" stroke-width="10" stroke-linecap="round" opacity="0.22"/>
+    <path d="M118 76 C100 76 88 84 80 100 C74 112 70 118 62 126 L54 132 C66 138 74 138 74 144 C70 152 66 156 72 162 C78 168 84 174 100 184 L118 184 Z" fill="url(#wPast)"/>
+    <circle cx="98" cy="116" r="5.5" fill="#0B0E14"/>
+    <path d="M138 76 C156 76 168 84 176 100 C182 112 186 118 194 126 L202 132 C190 138 182 138 182 144 C186 152 190 156 184 162 C178 168 172 174 156 184 L138 184 Z" fill="url(#wFuture)"/>
+    <circle cx="158" cy="116" r="5.5" fill="#0B0E14"/>
+    <rect x="124" y="74" width="8" height="112" rx="4" fill="#0B0E14"/>
+    <rect x="126.5" y="76" width="3" height="108" rx="1.5" fill="url(#wSeam)"/>
+    <circle cx="128" cy="176" r="18" fill="#0B0E14" stroke="#10B981" stroke-width="4"/>
+    <path d="M119.5 176 l6 6 l11 -13" fill="none" stroke="#10B981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- ===== wordmark ===== -->
+  <text x="208" y="118" font-family="'SF Pro Display','Segoe UI',system-ui,-apple-system,sans-serif"
+        font-size="92" font-weight="800" letter-spacing="2" fill="url(#wBrand)">JANUS</text>
+  <text x="212" y="156" font-family="'SF Mono','Roboto Mono',ui-monospace,monospace"
+        font-size="19" font-weight="500" letter-spacing="4" fill="#94A3B8">THE&#160;UNIFIED&#160;EVAL&#160;ENGINE</text>
 </svg>
