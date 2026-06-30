@@ -15,3 +15,4 @@ scripts/bin/harness-cli.exe
 scripts/__pycache__/
 scripts/recall_health.json
 .omc/
+.omc/
