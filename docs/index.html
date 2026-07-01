@@ -27,6 +27,14 @@
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
   .grad-text{background:var(--brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 
+  /* ---- code-drawn iconography (no emoji) ---- */
+  .icon{display:inline-block;width:24px;height:24px;stroke:url(#ig);stroke-width:1.6;
+    fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+  .icon-sm{width:16px;height:16px;stroke-width:1.8}
+  .icon-inline{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none;
+    stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-left:5px}
+  .icon-star{width:17px;height:17px;fill:url(#ig);stroke:none;vertical-align:-3px;margin-right:6px}
+
   /* aurora background */
   .aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
   .aurora span{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;animation:drift 22s ease-in-out infinite}
@@ -85,6 +93,7 @@
   .cursor{display:inline-block;width:8px;height:1.05em;background:var(--cyan);vertical-align:-2px;animation:blink 1s steps(1) infinite;margin-left:2px}
   @keyframes blink{50%{opacity:0}}
   .term-cap{text-align:center;color:var(--dim);font-size:.78rem;margin-top:14px}
+  .term-cap svg{stroke:var(--dim)}
 
   /* sections */
   section{position:relative;z-index:1}
@@ -97,8 +106,9 @@
   .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));
     border:1px solid var(--line);border-radius:var(--radius);padding:30px;transition:transform .25s,border-color .25s,box-shadow .25s}
   .card:hover{transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(99,102,241,.18)}
-  .card .ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:1.4rem;
+  .card .ico{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;
     background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.3);margin-bottom:18px}
+  .card .ico svg{width:26px;height:26px}
   .card h3{font-size:1.2rem;margin-bottom:8px}
   .card p{color:var(--muted);font-size:.94rem}
 
@@ -117,7 +127,8 @@
   .gate b{font-family:monospace;color:var(--cyan)}
   .gate.pre{border-color:rgba(99,102,241,.4)} .gate.during{border-color:rgba(139,92,246,.45)}
   .gate.post{border-color:rgba(244,63,94,.4)} .gate.persist{border-color:rgba(16,185,129,.4)}
-  .arrow{color:var(--dim);align-self:center}
+  .arrow{color:var(--dim);align-self:center;display:inline-flex}
+  .arrow svg{width:16px;height:16px;stroke:var(--dim);stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
 
   /* table */
   .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:rgba(255,255,255,.02)}
@@ -125,7 +136,7 @@
   th,td{padding:16px 20px;text-align:left;border-top:1px solid var(--line)}
   thead th{background:rgba(99,102,241,.12);border-top:none;font-size:.9rem}
   td.hl{color:var(--text);font-weight:700}
-  .yes{color:var(--emerald);font-weight:700}.no{color:var(--rose)}
+  .yes svg{stroke:var(--emerald)}.no svg{stroke:var(--rose)}
   .note{text-align:center;color:var(--dim);font-size:.8rem;margin-top:16px}
 
   /* stats band */
@@ -174,6 +185,17 @@
 </head>
 <body>
 
+<!-- shared gradient for code-drawn icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ig" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset=".5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+</svg>
+
 <div class="aurora"><span class="a"></span><span class="b"></span><span class="c"></span></div>
 <div class="grid-mask"></div>
 
@@ -186,7 +208,8 @@
       <a href="#eval">Eval harness</a>
       <a href="#compare">Compare</a>
       <a href="#install">Install</a>
-      <a class="btn btn-ghost" href="https://github.com/hoainho/janus" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/hoainho/janus" target="_blank" rel="noopener">GitHub
+        <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9"/></svg></a>
     </div>
   </div>
 </nav>
@@ -200,7 +223,9 @@
     <p class="lead">Evaluate before you build. Score before you ship. Catch regressions before they ship for you — from one binary, backed by one SQLite database.</p>
     <div class="cta-row">
       <a class="btn btn-primary btn-lg" href="#install">Get started</a>
-      <a class="btn btn-ghost btn-lg" href="https://github.com/hoainho/janus" target="_blank" rel="noopener">★ Star on GitHub</a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/hoainho/janus" target="_blank" rel="noopener">
+        <svg class="icon-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.85 6.4 6.65.6-5.02 4.42 1.5 6.58L12 17.6 6.02 21l1.5-6.58L2.5 9.5l6.65-.6z"/></svg>
+        Star on GitHub</a>
     </div>
     <div class="trust">
       <span><b>0</b> runtime deps</span>
@@ -222,7 +247,9 @@
       </div>
       <div class="term-body mono" id="termBody"></div>
     </div>
-    <p class="term-cap">↑ Illustrative harness session — the runtime, gates and eval verdict in real CLI shape.</p>
+    <p class="term-cap">
+      <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      Illustrative harness session — the runtime, gates and eval verdict in real CLI shape.</p>
   </div>
 </section>
 
@@ -233,12 +260,12 @@
     <h2 class="reveal">One binary. Every guardrail.</h2>
     <p class="sub reveal">A harness that governs how a change reaches merge, and an eval harness that proves your skills still behave — sharing a single queryable database.</p>
     <div class="cards">
-      <div class="card reveal"><div class="ico">🛡️</div><h3>9 quality gates</h3><p>Pre-flight, acceptance criteria, recall, matrix, evidence, review, push permission, Jira tier, reconciliation — scaled by risk lane.</p></div>
-      <div class="card reveal"><div class="ico">🎯</div><h3>14 eval commands</h3><p>run · baseline · diff · status · promote · trend · accept · apply · ab · rebaseline · analyze · suggest · goal · quality.</p></div>
-      <div class="card reveal"><div class="ico">🔬</div><h3>9 check kinds</h3><p>Shell, JSON-path, file, transcript grep (±), LLM judge, prompt &amp; response quality, and context relevance.</p></div>
-      <div class="card reveal"><div class="ico">🧭</div><h3>5 attribution classes</h3><p>On a regression, Janus says <em>why</em>: skill, fixture, model, cross-skill change, or unknown drift.</p></div>
-      <div class="card reveal"><div class="ico">⚡</div><h3>Native &amp; tiny</h3><p>A 5.4 MB Rust binary with zero runtime dependencies. No bash, no jq, no python. Cold start ≈ 10 ms.</p></div>
-      <div class="card reveal"><div class="ico">💰</div><h3>Cost-aware</h3><p>Per-case token &amp; time caps, a daily spend budget, and model pricing baked in for honest accounting.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 7.2-7 8.5-4-1.3-7-4-7-8.5V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>9 quality gates</h3><p>Pre-flight, acceptance criteria, recall, matrix, evidence, review, push permission, Jira tier, reconciliation — scaled by risk lane.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></div><h3>14 eval commands</h3><p>run · baseline · diff · status · promote · trend · accept · apply · ab · rebaseline · analyze · suggest · goal · quality.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-4.5 8.5A2 2 0 007.3 21h9.4a2 2 0 001.8-3.5L14 9V3"/><path d="M8 14h8"/></svg></div><h3>9 check kinds</h3><p>Shell, JSON-path, file, transcript grep (±), LLM judge, prompt &amp; response quality, and context relevance.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 5.3-5.3 2.2 2.2-5.3z"/></svg></div><h3>5 attribution classes</h3><p>On a regression, Janus says <em>why</em>: skill, fixture, model, cross-skill change, or unknown drift.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div><h3>Native &amp; tiny</h3><p>A 5.4 MB Rust binary with zero runtime dependencies. No bash, no jq, no python. Cold start ≈ 10 ms.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg></div><h3>Cost-aware</h3><p>Per-case token &amp; time caps, a daily spend budget, and model pricing baked in for honest accounting.</p></div>
     </div>
   </div>
 </section>
@@ -247,26 +274,26 @@
 <section class="sec" id="how">
   <div class="wrap">
     <p class="eyebrow reveal">How it works</p>
-    <h2 class="reveal">Intent → Gate → Merge</h2>
+    <h2 class="reveal">Intent &rarr; Gate &rarr; Merge</h2>
     <p class="sub reveal">Every change enters one intake and is routed to a risk lane. The lane decides which gates apply.</p>
     <div class="steps">
       <div class="step reveal"><div class="n">01 · INTAKE</div><h4>Classify the risk</h4><p>Record the work; Janus picks a lane — tiny, normal, or high-risk — from its risk checklist.</p><div class="code mono">harness-cli intake --type feature \<br>&nbsp;&nbsp;--summary "Add OAuth" --lane normal</div></div>
-      <div class="step reveal"><div class="n">02 · GATE</div><h4>Prove each criterion</h4><p>Acceptance criteria are extracted, mapped to tests, and proven with evidence — reviewer ≠ implementer.</p><div class="code mono">harness-cli story verify US-001<br>harness-cli query matrix</div></div>
+      <div class="step reveal"><div class="n">02 · GATE</div><h4>Prove each criterion</h4><p>Acceptance criteria are extracted, mapped to tests, and proven with evidence — reviewer &ne; implementer.</p><div class="code mono">harness-cli story verify US-001<br>harness-cli query matrix</div></div>
       <div class="step reveal"><div class="n">03 · EVAL</div><h4>Guard against drift</h4><p>Behavior-regression evals run on push. A regression is attributed, not just flagged red.</p><div class="code mono">harness-cli eval run \<br>&nbsp;&nbsp;--skill=code-reviewer --mode=2tier</div></div>
     </div>
 
     <div style="margin-top:56px">
       <h3 style="text-align:center;font-weight:700;margin-bottom:24px;color:var(--muted)">The 9 gates, in order</h3>
       <div class="gates">
-        <span class="gate pre"><b>T0</b> Pre-flight</span><span class="arrow">→</span>
-        <span class="gate pre"><b>T1</b> AC extraction</span><span class="arrow">→</span>
-        <span class="gate pre"><b>M1</b> Recall</span><span class="arrow">→</span>
-        <span class="gate during"><b>T2</b> Matrix</span><span class="arrow">→</span>
-        <span class="gate during"><b>T3</b> Evidence</span><span class="arrow">→</span>
-        <span class="gate during"><b>RV</b> Review</span><span class="arrow">→</span>
-        <span class="gate post"><b>P1</b> Push perm</span><span class="arrow">→</span>
-        <span class="gate post"><b>P2</b> Jira tier</span><span class="arrow">→</span>
-        <span class="gate post"><b>T4</b> Reconcile</span><span class="arrow">→</span>
+        <span class="gate pre"><b>T0</b> Pre-flight</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate pre"><b>T1</b> AC extraction</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate pre"><b>M1</b> Recall</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate during"><b>T2</b> Matrix</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate during"><b>T3</b> Evidence</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate during"><b>RV</b> Review</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate post"><b>P1</b> Push perm</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate post"><b>P2</b> Jira tier</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="gate post"><b>T4</b> Reconcile</span><span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         <span class="gate persist"><b>M2</b> Persist</span>
       </div>
     </div>
@@ -280,9 +307,9 @@
     <h2 class="reveal">Does this skill still do what it did?</h2>
     <p class="sub reveal">Pick a mode, run the checks, and on a regression get the likely cause — not just a red X.</p>
     <div class="cards">
-      <div class="card reveal"><div class="ico">💨</div><h3>smoke</h3><p>One sample per case. Fast feedback for every commit and pre-push hook.</p></div>
-      <div class="card reveal"><div class="ico">🔁</div><h3>full</h3><p>Three samples per case. Thorough scoring for release-grade confidence.</p></div>
-      <div class="card reveal"><div class="ico">⏫</div><h3>2-tier</h3><p>Smoke first, then escalate only the failures to full. Best of both.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15a8 8 0 0116 0"/><path d="M12 15l4-4"/><path d="M4 19h16"/></svg></div><h3>smoke</h3><p>One sample per case. Fast feedback for every commit and pre-push hook.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l3-3M4 8h11a4 4 0 014 4"/><path d="M20 16l-3 3M20 16H9a4 4 0 01-4-4"/></svg></div><h3>full</h3><p>Three samples per case. Thorough scoring for release-grade confidence.</p></div>
+      <div class="card reveal"><div class="ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></div><h3>2-tier</h3><p>Smoke first, then escalate only the failures to full. Best of both.</p></div>
     </div>
     <p class="note">Promote a skill from <span class="c-warn mono">warn-only</span> to <span class="c-ok mono">blocking</span> once it's earned trust — a blocking regression exits <span class="mono">12</span> and stops the push.</p>
   </div>
@@ -303,14 +330,14 @@
           <tr><td>Check kinds</td><td>~6</td><td class="hl">9</td></tr>
           <tr><td>Attribution classes</td><td>~4</td><td class="hl">5</td></tr>
           <tr><td>Eval modes</td><td>1</td><td class="hl">3</td></tr>
-          <tr><td>LLM judge (your model)</td><td><span class="no">✗</span></td><td><span class="yes">✓</span></td></tr>
-          <tr><td>Single binary, zero deps</td><td><span class="no">✗</span></td><td><span class="yes">✓</span></td></tr>
-          <tr><td>SQLite-native state</td><td><span class="no">✗</span></td><td><span class="yes">✓</span></td></tr>
-          <tr><td>Windows support</td><td><span class="no">✗</span></td><td><span class="yes">✓</span></td></tr>
+          <tr><td>LLM judge (your model)</td><td><span class="no"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></span></td><td><span class="yes"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td></tr>
+          <tr><td>Single binary, zero deps</td><td><span class="no"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></span></td><td><span class="yes"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td></tr>
+          <tr><td>SQLite-native state</td><td><span class="no"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></span></td><td><span class="yes"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td></tr>
+          <tr><td>Windows support</td><td><span class="no"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></span></td><td><span class="yes"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">Team-level ROI numbers (e.g. “bugs caught”, “hours saved”) are scenario projections, not measured benchmarks of this repo. The counts above are real.</p>
+    <p class="note">Team-level ROI numbers (e.g. &ldquo;bugs caught&rdquo;, &ldquo;hours saved&rdquo;) are scenario projections, not measured benchmarks of this repo. The counts above are real.</p>
   </div>
 </section>
 
@@ -331,12 +358,12 @@
 <section class="sec">
   <div class="wrap">
     <p class="eyebrow reveal">The name</p>
-    <h2 class="reveal" style="margin-bottom:44px">Why “Janus”?</h2>
+    <h2 class="reveal" style="margin-bottom:44px">Why &ldquo;Janus&rdquo;?</h2>
     <div class="janus reveal">
       <img src="logo.svg" alt="Janus mark — two faces and a gate">
       <div>
         <p>In Roman myth, <strong>Janus</strong> is the god of gates, doorways and transitions — depicted with <strong>two faces</strong>, one turned to the past and one to the future.</p>
-        <p>The harness does the same: it weighs <strong>what was</strong> (your baseline) against <strong>what is</strong> (your current run), and guards the threshold between them. The green check in the mark is the gate, passed.</p>
+        <p>The harness does the same: it weighs <strong>what was</strong> (your baseline) against <strong>what is</strong> (your current run), and guards the threshold between them. The mark's checked seam is the gate, passed.</p>
       </div>
     </div>
   </div>
@@ -353,16 +380,18 @@
       <div class="term-body mono" style="min-height:auto">
         <div class="ln"><span class="c-dim"># one-liner</span></div>
         <div class="ln"><span class="c-prompt">$</span> <span class="c-cmd">curl -fsSL https://raw.githubusercontent.com/hoainho/janus/main/scripts/install-harness.sh | bash -s -- --yes</span></div>
-        <div class="ln"><span class="c-out">✓ harness-cli installed · git hooks wired</span></div>
+        <div class="ln"><span class="c-ok">[ok]</span> <span class="c-out">harness-cli installed · git hooks wired</span></div>
         <div class="ln" style="margin-top:8px"><span class="c-prompt">$</span> <span class="c-cmd">harness-cli init</span></div>
-        <div class="ln"><span class="c-ok">✓ SQLite schema applied — ready to evaluate.</span></div>
+        <div class="ln"><span class="c-ok">[ok]</span> <span class="c-out">SQLite schema applied — ready to evaluate.</span></div>
         <div class="ln" style="margin-top:8px"><span class="c-dim"># or via npm</span></div>
         <div class="ln"><span class="c-prompt">$</span> <span class="c-cmd">npm install -g </span><span class="c-flag">@nano-step/janus</span></div>
       </div>
     </div>
     <div class="cta-row" style="margin-top:34px">
-      <a class="btn btn-primary btn-lg" href="https://github.com/hoainho/janus" target="_blank" rel="noopener">View on GitHub ↗</a>
-      <a class="btn btn-ghost btn-lg" href="https://www.npmjs.com/package/@nano-step/janus" target="_blank" rel="noopener">npm package ↗</a>
+      <a class="btn btn-primary btn-lg" href="https://github.com/hoainho/janus" target="_blank" rel="noopener">View on GitHub
+        <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9"/></svg></a>
+      <a class="btn btn-ghost btn-lg" href="https://www.npmjs.com/package/@nano-step/janus" target="_blank" rel="noopener">npm package
+        <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9"/></svg></a>
     </div>
   </div>
 </section>
@@ -419,22 +448,22 @@
   // each step: {k:'cmd'|'line', cls, text}  (cmd types char-by-char with prompt)
   var script=[
     {k:'cmd', text:'harness-cli intake --type feature --summary "Add OAuth login" --lane normal'},
-    {k:'line', cls:'c-out', text:'✓ Intake #1 recorded · lane=normal · 2 risk flags'},
+    {k:'line', cls:'c-out', text:'[ok] Intake #1 recorded · lane=normal · 2 risk flags'},
     {k:'gap'},
     {k:'cmd', text:'harness-cli story add --id US-001 --title "OAuth login flow" --lane normal'},
-    {k:'line', cls:'c-out', text:'✓ Story US-001 added'},
+    {k:'line', cls:'c-out', text:'[ok] Story US-001 added'},
     {k:'gap'},
     {k:'cmd', text:'harness-cli eval run --skill=code-reviewer --mode=2tier'},
     {k:'line', cls:'c-dim', text:'[eval] skill=code-reviewer  mode=2tier  cases=3'},
-    {k:'line', cls:'c-dim', text:'[gate] T0 pre-flight ✓   T1 criteria ✓   M1 recall ✓'},
+    {k:'line', cls:'c-dim', text:'[gate] T0 pre-flight ok   T1 criteria ok   M1 recall ok'},
     {k:'line', cls:'c-ok',  text:'[eval] 1/3  review-must-flag-sql-injection   PASS'},
     {k:'line', cls:'c-ok',  text:'[eval] 2/3  review-flags-missing-authz        PASS'},
-    {k:'line', cls:'c-warn',text:'[eval] 3/3  review-style-suggestions   smoke fail → escalate'},
+    {k:'line', cls:'c-warn',text:'[eval] 3/3  review-style-suggestions   smoke fail -> escalate'},
     {k:'line', cls:'c-ok',  text:'[eval] 3/3  review-style-suggestions   PASS (3/3 samples)'},
-    {k:'line', cls:'c-key', text:'━━ VERDICT: PASS  ·  3/3  ·  0 regressions  ·  12,480 tok  ·  1.8s  ·  $0.004'},
+    {k:'line', cls:'c-key', text:'== VERDICT: PASS  ·  3/3  ·  0 regressions  ·  12,480 tok  ·  1.8s  ·  $0.004'},
     {k:'gap'},
     {k:'cmd', text:'harness-cli query matrix'},
-    {k:'line', cls:'c-out', text:'US-001  [████████░]  reviewed   evidence 3/3   gate PASS'},
+    {k:'line', cls:'c-out', text:'US-001  [########.]  reviewed   evidence 3/3   gate PASS'},
   ];
 
   function el(cls,html){var d=document.createElement('div');d.className='ln';if(cls)d.classList.add(cls);if(html!=null)d.innerHTML=html;return d;}
