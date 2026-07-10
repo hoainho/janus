@@ -15,8 +15,9 @@ use crate::application::{
 use crate::domain::{
     normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
     validate_responsibility, validate_tool_kind, BacklogFilter, BacklogRecord, BoolFlag,
-    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord,
-    HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord, RiskLane,
+    ContextScoreResult, CoverageReport, CsvList, DecisionRecord, FrictionRecord, GateLogRecord,
+    GcrRecord, HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord,
+    MIN_STORIES_FOR_RAG, RiskLane,
     StoryExportRecord, StoryMatrixRecord, StoryVerifyAllResult, ToolEntry, TraceQualityTier,
     TraceRecord, TraceScoreResult, RISK_LANE_HELP,
 };
@@ -441,6 +442,8 @@ enum QueryView {
     GateLog,
     /// Per-story gate-compliance rate (GCR) from docs/p3-ac6-compliance-metric.md.
     Gcr,
+    /// Adoption + instrumentation coverage snapshot (are sessions being captured?).
+    Coverage,
     /// Run arbitrary SQL.
     Sql { query: Vec<String> },
 }
@@ -929,6 +932,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             QueryView::Stats => print_stats(&service.query_stats()?),
             QueryView::GateLog => print_gate_log(&service.query_gate_log()?),
             QueryView::Gcr => print_gcr(&service.query_gcr()?),
+            QueryView::Coverage => print_coverage(&service.query_coverage()?),
             QueryView::Sql { query } => {
                 if query.is_empty() {
                     return Err(InterfaceError::EmptySql);
@@ -2553,7 +2557,13 @@ fn print_gcr(records: &[GcrRecord]) {
     let total_expected: i64 = records.iter().map(|record| record.gates_expected).sum();
     if total_expected > 0 {
         let avg = total_recorded as f64 / total_expected as f64;
-        let avg_rag = if avg >= 0.85 {
+        // Data-sufficiency guard: below MIN_STORIES_FOR_RAG a colour is
+        // misleading (a single well-formed story reads "green" while the
+        // harness is effectively unused). Report grey instead.
+        let insufficient = records.len() < MIN_STORIES_FOR_RAG;
+        let avg_rag = if insufficient {
+            "grey (insufficient data)"
+        } else if avg >= 0.85 {
             "green"
         } else if avg >= 0.50 {
             "yellow"
@@ -2567,6 +2577,79 @@ fn print_gcr(records: &[GcrRecord]) {
             total_expected,
             avg * 100.0,
             avg_rag
+        );
+        if insufficient {
+            println!(
+                "  ⚠ only {} story(ies) tracked (need ≥{} for a meaningful verdict).",
+                records.len(),
+                MIN_STORIES_FOR_RAG
+            );
+        }
+    }
+}
+
+fn print_coverage(report: &CoverageReport) {
+    fn pct(part: i64, whole: i64) -> f64 {
+        if whole == 0 {
+            0.0
+        } else {
+            part as f64 / whole as f64 * 100.0
+        }
+    }
+
+    let story_cov = pct(report.stories_with_trace, report.total_stories);
+    let verify_cov = pct(report.verified_stories, report.total_stories);
+    let token_cov = pct(report.traces_with_token, report.total_traces);
+    let dur_cov = pct(report.traces_with_duration, report.total_traces);
+
+    print_table(
+        &["metric", "value", "coverage"],
+        &[
+            vec![
+                "stories with ≥1 trace".to_owned(),
+                format!("{}/{}", report.stories_with_trace, report.total_stories),
+                format!("{story_cov:.1}%"),
+            ],
+            vec![
+                "stories verified".to_owned(),
+                format!("{}/{}", report.verified_stories, report.total_stories),
+                format!("{verify_cov:.1}%"),
+            ],
+            vec![
+                "traces with token estimate".to_owned(),
+                format!("{}/{}", report.traces_with_token, report.total_traces),
+                format!("{token_cov:.1}%"),
+            ],
+            vec![
+                "traces with duration".to_owned(),
+                format!("{}/{}", report.traces_with_duration, report.total_traces),
+                format!("{dur_cov:.1}%"),
+            ],
+            vec![
+                "total tokens captured".to_owned(),
+                format!("{}", report.total_tokens),
+                "—".to_owned(),
+            ],
+        ],
+    );
+
+    println!();
+    if (report.total_stories as usize) < MIN_STORIES_FOR_RAG {
+        println!(
+            "Adoption: grey (insufficient data) — {} story(ies), need ≥{}.",
+            report.total_stories, MIN_STORIES_FOR_RAG
+        );
+    } else {
+        let rag = if token_cov >= 90.0 && story_cov >= 80.0 {
+            "green"
+        } else if token_cov >= 50.0 {
+            "yellow"
+        } else {
+            "red"
+        };
+        println!(
+            "Adoption: {} — {:.0}% traces instrumented, {:.0}% stories traced.",
+            rag, token_cov, story_cov
         );
     }
 }

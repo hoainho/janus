@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use crate::domain::{
-    AuditResult, BacklogFilter, BacklogRecord, BoolFlag, ContextScoreResult, CsvList,
-    DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord, HarnessStats, ImprovementProposal,
+    AuditResult, BacklogFilter, BacklogRecord, BoolFlag, ContextScoreResult, CoverageReport,
+    CsvList, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord, HarnessStats,
+    ImprovementProposal,
     InputType, IntakeRecord, InterventionRecord, RiskLane, StoryExportRecord, StoryMatrixRecord,
     StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec, ToolEntry, TraceRecord, TraceScoreResult,
 };
@@ -327,6 +328,10 @@ impl HarnessService {
 
     pub fn query_gcr(&self) -> crate::infrastructure::Result<Vec<GcrRecord>> {
         self.repository.query_gcr()
+    }
+
+    pub fn query_coverage(&self) -> crate::infrastructure::Result<CoverageReport> {
+        self.repository.query_coverage()
     }
 }
 
