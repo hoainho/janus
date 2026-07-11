@@ -45,7 +45,7 @@ all backed by one SQLite database.
 | | |
 |---|---|
 | 🛡️ **9 quality gates** | Pre‑flight → AC extraction → recall → matrix → evidence → review → push permission → Jira tier → reconciliation, scaled by risk lane. |
-| 🎯 **14 eval commands** | `run · baseline · diff · status · promote · trend · accept · apply · ab · rebaseline · analyze · suggest · goal · quality`. |
+| 🎯 **14 eval commands** _(experimental, opt-in)_ | `run · baseline · diff · status · promote · trend · accept · apply · ab · rebaseline · analyze · suggest · goal · quality`. Not in the default binary — build with `--features eval`. |
 | 🔬 **9 check kinds** | Shell, JSON‑path, file, transcript grep (±), LLM judge, prompt/response quality, context relevance. |
 | 🧭 **5 attribution classes** | When an eval regresses, Janus tells you *why*: skill, fixture, model, cross‑skill, or unknown drift. |
 | ⚡ **Single Rust binary** | 5.4 MB, **zero runtime dependencies** — no bash, no jq, no python. Cold start ≈ 10 ms. |
@@ -80,6 +80,9 @@ bash ~/janus/scripts/install-harness.sh --yes
 # Build from source
 git clone https://github.com/hoainho/janus.git
 cd janus && cargo build --release
+
+# Include the experimental eval harness (opt-in — off by default)
+cargo build --release --features eval
 ```
 
 </details>
@@ -189,6 +192,11 @@ flowchart LR
 ---
 
 ## 🔬 Eval harness
+
+> ⚗️ **Experimental / opt-in.** The eval harness is not compiled into the default
+> binary. Build it with `cargo build --release --features eval` (or `cargo install
+> --features eval`); without that flag the `harness-cli eval …` subcommand is absent.
+> The 9 quality gates above ship in every build — only this eval layer is gated.
 
 The eval harness answers one question on every push: **does this skill still do
 what it did at baseline?** Pick a mode, run the checks, and on a regression Janus
