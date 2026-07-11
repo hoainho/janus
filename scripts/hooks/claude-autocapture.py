@@ -208,6 +208,18 @@ def _q(s):
     return f'"{s}"' if " " in str(s) else str(s)
 
 
+def detect_workspace(hook, transcript):
+    """Classify the session's workspace so a single shared Janus DB stays
+    analysable per-workspace. Live sessions carry `cwd`; backfill infers from
+    the transcript's project-dir path (Claude encodes cwd with dashes)."""
+    hay = f"{hook.get('cwd', '')} {transcript or ''}"
+    if "Documents/personal" in hay or "Documents-personal" in hay:
+        return "personal"
+    if "Documents/geargames" in hay or "Documents-geargames" in hay:
+        return "geargames"
+    return "other"
+
+
 def main():
     raw = sys.stdin.read() if not sys.stdin.isatty() else "{}"
     try:
@@ -239,10 +251,11 @@ def main():
         return 0
 
     ticket = data["ticket"]
+    workspace = detect_workspace(hook, transcript)
     summary = data["summary"] or f"Claude session {session_id[:8]}"
     summary = re.sub(r"\s+", " ", summary)[:120]
-    notes = (f"auto-captured; session_id={session_id}; lines={data['n_lines']}; "
-             f"wall_clock_s={data.get('wall_clock')}")
+    notes = (f"auto-captured; workspace={workspace}; session_id={session_id}; "
+             f"lines={data['n_lines']}; wall_clock_s={data.get('wall_clock')}")
 
     # ensure a story row exists for the ticket (idempotent-ish: add is safe to
     # attempt; harness-cli rejects dup PK, which we tolerate)
@@ -270,7 +283,7 @@ def main():
         trace_cmd += ["--errors", f"{data['errors']} tool errors observed"]
 
     run(trace_cmd)
-    log(f"captured session {session_id[:8]} "
+    log(f"captured session {session_id[:8]} ws={workspace} "
         f"ticket={ticket} tokens={data['tokens']} "
         f"dur={data['duration']}s files={len(data['files_changed'])}")
     return 0
