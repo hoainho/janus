@@ -127,21 +127,27 @@
 
   /* hero: two-faced threshold card */
   .threshold{position:relative;border:1px solid var(--line-2);border-radius:20px;background:
-    linear-gradient(150deg,color-mix(in srgb,var(--steel) 12%,transparent),transparent 42%),
-    linear-gradient(300deg,color-mix(in srgb,var(--warn) 12%,transparent),transparent 42%),var(--panel);
-    padding:26px;box-shadow:var(--shadow);overflow:hidden}
-  .threshold::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;
-    background:linear-gradient(var(--steel),var(--accent),var(--warn));opacity:.5;transform:translateX(-.5px)}
-  .th-head{display:flex;justify-content:space-between;font-family:"SF Mono",ui-monospace,monospace;
-    font-size:.72rem;letter-spacing:1px;color:var(--dim);margin-bottom:16px;text-transform:uppercase}
-  .th-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .th-col h5{font-family:"SF Mono",ui-monospace,monospace;font-size:.7rem;letter-spacing:1px;color:var(--muted);margin-bottom:9px}
+    linear-gradient(150deg,color-mix(in srgb,var(--steel) 10%,transparent),transparent 46%),
+    linear-gradient(300deg,color-mix(in srgb,var(--warn) 10%,transparent),transparent 46%),var(--panel);
+    padding:24px 28px 26px;box-shadow:var(--shadow);overflow:hidden}
+  .th-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+    font-family:"SF Mono",ui-monospace,monospace;font-size:.7rem;letter-spacing:1.5px;
+    color:var(--dim);margin-bottom:20px;text-transform:uppercase}
+  .th-head .r{text-align:right}
+  .th-head .c{text-align:center;padding:0 14px}
+  /* columns area — divider lives only here, exactly in the gutter */
+  .th-cols{position:relative;display:grid;grid-template-columns:1fr 1fr}
+  .th-cols::before{content:"";position:absolute;top:2px;bottom:2px;left:50%;width:1px;
+    background:linear-gradient(var(--steel),var(--accent) 52%,var(--warn));opacity:.4;transform:translateX(-.5px)}
+  .th-col{display:flex;flex-direction:column}
+  .th-col.past{padding-right:22px} .th-col.future{padding-left:22px}
+  .th-col h5{font-family:"SF Mono",ui-monospace,monospace;font-size:.74rem;letter-spacing:.3px;margin-bottom:4px}
   .th-col.past h5{color:var(--steel)} .th-col.future h5{color:var(--warn)}
-  .th-row{display:flex;align-items:center;gap:8px;font-family:"SF Mono",ui-monospace,monospace;font-size:.76rem;
-    color:var(--muted);padding:6px 0;border-top:1px solid var(--line)}
-  .th-row .k{color:var(--ink)}
-  .th-gate{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:9px;
-    padding:11px;border-radius:11px;border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+  .th-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    font-family:"SF Mono",ui-monospace,monospace;font-size:.78rem;padding:9px 0;border-top:1px solid var(--line)}
+  .th-row .k{color:var(--muted)} .th-row .v{color:var(--ink);font-variant-numeric:tabular-nums}
+  .th-gate{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:9px;
+    padding:12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);
     background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--pass-ink);
     font-family:"SF Mono",ui-monospace,monospace;font-size:.8rem;font-weight:600}
   .th-gate svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2}
@@ -355,19 +361,19 @@
 
       <!-- two-faced threshold -->
       <div class="threshold reveal" aria-hidden="true">
-        <div class="th-head"><span>PAST</span><span>· gate ·</span><span>FUTURE</span></div>
+        <div class="th-head"><span class="l">PAST</span><span class="c">· gate ·</span><span class="r">FUTURE</span></div>
         <div class="th-cols">
           <div class="th-col past">
             <h5>&#9666; baseline</h5>
-            <div class="th-row"><span class="k">score</span> 3/3 pass</div>
-            <div class="th-row"><span class="k">tokens</span> 11,902</div>
-            <div class="th-row"><span class="k">verdict</span> green</div>
+            <div class="th-row"><span class="k">score</span><span class="v">3/3 pass</span></div>
+            <div class="th-row"><span class="k">tokens</span><span class="v">11,902</span></div>
+            <div class="th-row"><span class="k">verdict</span><span class="v">green</span></div>
           </div>
           <div class="th-col future">
             <h5>current &#9656;</h5>
-            <div class="th-row"><span class="k">score</span> 3/3 pass</div>
-            <div class="th-row"><span class="k">tokens</span> 12,480</div>
-            <div class="th-row"><span class="k">drift</span> none</div>
+            <div class="th-row"><span class="k">score</span><span class="v">3/3 pass</span></div>
+            <div class="th-row"><span class="k">tokens</span><span class="v">12,480</span></div>
+            <div class="th-row"><span class="k">drift</span><span class="v">none</span></div>
           </div>
         </div>
         <div class="th-gate">
