@@ -16,3 +16,7 @@ scripts/__pycache__/
 scripts/recall_health.json
 .omc/
 .omc/
+
+# Python bytecode from capture hook.
+__pycache__/
+*.pyc
