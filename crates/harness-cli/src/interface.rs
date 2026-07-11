@@ -1,4 +1,5 @@
 use std::env;
+#[cfg(feature = "eval")]
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -15,8 +16,9 @@ use crate::application::{
 use crate::domain::{
     normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
     validate_responsibility, validate_tool_kind, BacklogFilter, BacklogRecord, BoolFlag,
-    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord,
-    HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord, RiskLane,
+    ContextScoreResult, CoverageReport, CsvList, DecisionRecord, FrictionRecord, GateLogRecord,
+    GcrRecord, HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord,
+    MIN_STORIES_FOR_RAG, RiskLane,
     StoryExportRecord, StoryMatrixRecord, StoryVerifyAllResult, ToolEntry, TraceQualityTier,
     TraceRecord, TraceScoreResult, RISK_LANE_HELP,
 };
@@ -52,6 +54,7 @@ enum Command {
     GateLog(GateLogArgs),
     Query(QueryArgs),
     Export(ExportArgs),
+    #[cfg(feature = "eval")]
     /// Eval harness commands for behavior-regression testing.
     Eval(EvalArgs),
 }
@@ -441,6 +444,8 @@ enum QueryView {
     GateLog,
     /// Per-story gate-compliance rate (GCR) from docs/p3-ac6-compliance-metric.md.
     Gcr,
+    /// Adoption + instrumentation coverage snapshot (are sessions being captured?).
+    Coverage,
     /// Run arbitrary SQL.
     Sql { query: Vec<String> },
 }
@@ -491,12 +496,14 @@ struct ExportStoryArgs {
     id: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalArgs {
     #[command(subcommand)]
     action: EvalAction,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Subcommand, Debug)]
 enum EvalAction {
     /// Run eval cases for a skill.
@@ -529,6 +536,7 @@ enum EvalAction {
     Rebaseline(EvalRebaselineArgs),
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalQualityArgs {
     #[arg(long)]
@@ -537,6 +545,7 @@ struct EvalQualityArgs {
     case: Option<String>,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalAnalyzeArgs {
     #[arg(long)]
@@ -545,12 +554,14 @@ struct EvalAnalyzeArgs {
     days: i64,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalSuggestArgs {
     #[arg(long)]
     skill: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalGoalArgs {
     #[arg(long)]
@@ -563,6 +574,7 @@ struct EvalGoalArgs {
     target: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalRunArgs {
     #[arg(long)]
@@ -583,30 +595,35 @@ struct EvalRunArgs {
     eval_type: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalBaselineArgs {
     #[arg(long)]
     skill: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalDiffArgs {
     #[arg(long)]
     run_id: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalStatusArgs {
     #[arg(long)]
     skill: Option<String>,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalPromoteArgs {
     #[arg(long)]
     skill: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalTrendArgs {
     #[arg(long)]
@@ -615,6 +632,7 @@ struct EvalTrendArgs {
     last: usize,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalAcceptArgs {
     #[arg(long)]
@@ -623,6 +641,7 @@ struct EvalAcceptArgs {
     case: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalApplyArgs {
     #[arg(long)]
@@ -631,6 +650,7 @@ struct EvalApplyArgs {
     run_id: Option<String>,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalAbArgs {
     #[arg(long)]
@@ -639,6 +659,7 @@ struct EvalAbArgs {
     skill_b: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalRebaselineArgs {
     #[arg(long)]
@@ -929,6 +950,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             QueryView::Stats => print_stats(&service.query_stats()?),
             QueryView::GateLog => print_gate_log(&service.query_gate_log()?),
             QueryView::Gcr => print_gcr(&service.query_gcr()?),
+            QueryView::Coverage => print_coverage(&service.query_coverage()?),
             QueryView::Sql { query } => {
                 if query.is_empty() {
                     return Err(InterfaceError::EmptySql);
@@ -942,6 +964,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 print_export_story_md(&service.query_export_story(&args.id)?)
             }
         },
+        #[cfg(feature = "eval")]
         Command::Eval(args) => match args.action {
             EvalAction::Run(args) => {
                 run_eval(&args)?;
@@ -991,6 +1014,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
     let skills_root = resolve_skills_root();
     let skill_dir = skills_root.join(&args.skill);
@@ -1393,6 +1417,7 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn get_state_dir() -> std::path::PathBuf {
     if let Ok(dir) = std::env::var("EVAL_STATE_DIR") {
         return std::path::PathBuf::from(dir);
@@ -1405,6 +1430,7 @@ fn get_state_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(".opencode/eval-harness")
 }
 
+#[cfg(feature = "eval")]
 fn get_home_dir() -> Option<std::path::PathBuf> {
     if let Ok(home) = std::env::var("HOME") {
         return Some(std::path::PathBuf::from(home));
@@ -1418,6 +1444,7 @@ fn get_home_dir() -> Option<std::path::PathBuf> {
     None
 }
 
+#[cfg(feature = "eval")]
 fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
     let skills_root = resolve_skills_root();
     let skill_dir = skills_root.join(&args.skill);
@@ -1519,6 +1546,7 @@ fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_diff(_args: &EvalDiffArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1604,6 +1632,7 @@ fn run_diff(_args: &EvalDiffArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1658,6 +1687,7 @@ fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1713,6 +1743,7 @@ fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_analyze(args: &EvalAnalyzeArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1805,6 +1836,7 @@ fn run_analyze(args: &EvalAnalyzeArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1869,6 +1901,7 @@ fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn resolve_skills_root() -> std::path::PathBuf {
     if let Ok(root) = std::env::var("OPENCODE_SKILLS_ROOT") {
         return std::path::PathBuf::from(root);
@@ -2553,7 +2586,13 @@ fn print_gcr(records: &[GcrRecord]) {
     let total_expected: i64 = records.iter().map(|record| record.gates_expected).sum();
     if total_expected > 0 {
         let avg = total_recorded as f64 / total_expected as f64;
-        let avg_rag = if avg >= 0.85 {
+        // Data-sufficiency guard: below MIN_STORIES_FOR_RAG a colour is
+        // misleading (a single well-formed story reads "green" while the
+        // harness is effectively unused). Report grey instead.
+        let insufficient = records.len() < MIN_STORIES_FOR_RAG;
+        let avg_rag = if insufficient {
+            "grey (insufficient data)"
+        } else if avg >= 0.85 {
             "green"
         } else if avg >= 0.50 {
             "yellow"
@@ -2567,6 +2606,79 @@ fn print_gcr(records: &[GcrRecord]) {
             total_expected,
             avg * 100.0,
             avg_rag
+        );
+        if insufficient {
+            println!(
+                "  ⚠ only {} story(ies) tracked (need ≥{} for a meaningful verdict).",
+                records.len(),
+                MIN_STORIES_FOR_RAG
+            );
+        }
+    }
+}
+
+fn print_coverage(report: &CoverageReport) {
+    fn pct(part: i64, whole: i64) -> f64 {
+        if whole == 0 {
+            0.0
+        } else {
+            part as f64 / whole as f64 * 100.0
+        }
+    }
+
+    let story_cov = pct(report.stories_with_trace, report.total_stories);
+    let verify_cov = pct(report.verified_stories, report.total_stories);
+    let token_cov = pct(report.traces_with_token, report.total_traces);
+    let dur_cov = pct(report.traces_with_duration, report.total_traces);
+
+    print_table(
+        &["metric", "value", "coverage"],
+        &[
+            vec![
+                "stories with ≥1 trace".to_owned(),
+                format!("{}/{}", report.stories_with_trace, report.total_stories),
+                format!("{story_cov:.1}%"),
+            ],
+            vec![
+                "stories verified".to_owned(),
+                format!("{}/{}", report.verified_stories, report.total_stories),
+                format!("{verify_cov:.1}%"),
+            ],
+            vec![
+                "traces with token estimate".to_owned(),
+                format!("{}/{}", report.traces_with_token, report.total_traces),
+                format!("{token_cov:.1}%"),
+            ],
+            vec![
+                "traces with duration".to_owned(),
+                format!("{}/{}", report.traces_with_duration, report.total_traces),
+                format!("{dur_cov:.1}%"),
+            ],
+            vec![
+                "total tokens captured".to_owned(),
+                format!("{}", report.total_tokens),
+                "—".to_owned(),
+            ],
+        ],
+    );
+
+    println!();
+    if (report.total_stories as usize) < MIN_STORIES_FOR_RAG {
+        println!(
+            "Adoption: grey (insufficient data) — {} story(ies), need ≥{}.",
+            report.total_stories, MIN_STORIES_FOR_RAG
+        );
+    } else {
+        let rag = if token_cov >= 90.0 && story_cov >= 80.0 {
+            "green"
+        } else if token_cov >= 50.0 {
+            "yellow"
+        } else {
+            "red"
+        };
+        println!(
+            "Adoption: {} — {:.0}% traces instrumented, {:.0}% stories traced.",
+            rag, token_cov, story_cov
         );
     }
 }
@@ -2677,6 +2789,7 @@ fn print_row(values: &[String], widths: &[usize]) {
     println!();
 }
 
+#[cfg(feature = "eval")]
 fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2715,6 +2828,7 @@ fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2778,6 +2892,7 @@ fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_trend(args: &EvalTrendArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2834,6 +2949,7 @@ fn run_trend(args: &EvalTrendArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_accept(args: &EvalAcceptArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2903,6 +3019,7 @@ fn run_accept(args: &EvalAcceptArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_apply(args: &EvalApplyArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2969,6 +3086,7 @@ fn run_apply(args: &EvalApplyArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_ab(args: &EvalAbArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -3069,6 +3187,7 @@ fn run_ab(args: &EvalAbArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_rebaseline(args: &EvalRebaselineArgs) -> Result<(), InterfaceError> {
     println!("[eval-harness] Rebaselining skill '{}'...", args.skill);
     run_baseline(&EvalBaselineArgs {

@@ -1,5 +1,6 @@
 mod application;
 mod domain;
+#[cfg(feature = "eval")]
 mod eval;
 mod infrastructure;
 mod interface;

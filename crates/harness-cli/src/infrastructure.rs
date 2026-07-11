@@ -16,7 +16,8 @@ use crate::application::{
 use crate::domain::{
     compiled_tool_registry, normalize_token, score_context, score_trace, validate_tool_description,
     AuditFinding, AuditResult, BacklogFilter, BacklogRecord, ContextScoreResult,
-    ContextScoreSource, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord, HarnessStats,
+    ContextScoreSource, CoverageReport, DecisionRecord, FrictionRecord, GateLogRecord, GcrRecord,
+    HarnessStats,
     ImprovementProposal, IntakeRecord, InterventionRecord, RiskLane, StoryExportRecord,
     StoryMatrixRecord, StoryVerifyAllItem, StoryVerifyAllResult, StoryVerifyStatus, ToolArgSpec,
     ToolEntry, TraceRecord, TraceScoreResult, TraceScoreSource,
@@ -117,6 +118,8 @@ pub trait HarnessRepository {
     fn query_export_story(&self, id: &str) -> Result<StoryExportRecord>;
     /// Per-story gate-compliance rate, plus an overall-average summary row.
     fn query_gcr(&self) -> Result<Vec<GcrRecord>>;
+    /// Adoption + instrumentation coverage snapshot.
+    fn query_coverage(&self) -> Result<CoverageReport>;
 }
 
 #[derive(Debug)]
@@ -1650,6 +1653,33 @@ ORDER BY gcr ASC;";
         })?;
 
         collect_rows(rows)
+    }
+
+    fn query_coverage(&self) -> Result<CoverageReport> {
+        let connection = self.open_existing()?;
+        let sql = "
+SELECT
+  (SELECT COUNT(*) FROM story),
+  (SELECT COUNT(DISTINCT story_id) FROM trace WHERE story_id IS NOT NULL),
+  (SELECT COUNT(*) FROM story
+     WHERE unit_proof = 1 OR integration_proof = 1 OR e2e_proof = 1
+        OR evidence IS NOT NULL OR last_verified_result = 'pass'),
+  (SELECT COUNT(*) FROM trace),
+  (SELECT COUNT(token_estimate) FROM trace),
+  (SELECT COUNT(duration_seconds) FROM trace),
+  (SELECT CAST(COALESCE(SUM(token_estimate), 0) AS INTEGER) FROM trace);";
+        let report = connection.query_row(sql, [], |row| {
+            Ok(CoverageReport {
+                total_stories: row.get(0)?,
+                stories_with_trace: row.get(1)?,
+                verified_stories: row.get(2)?,
+                total_traces: row.get(3)?,
+                traces_with_token: row.get(4)?,
+                traces_with_duration: row.get(5)?,
+                total_tokens: row.get(6)?,
+            })
+        })?;
+        Ok(report)
     }
 }
 

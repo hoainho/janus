@@ -1204,6 +1204,29 @@ pub struct GcrRecord {
     pub rag: String,
 }
 
+/// Adoption + instrumentation coverage snapshot for `query coverage`.
+///
+/// Answers the question the raw stats can't: are sessions actually being
+/// captured, and do the traces carry the token/duration telemetry that makes
+/// GCR/ROI meaningful. Distinct from GCR, which scores *how well* a story
+/// passed its gates — this scores *whether the durable layer is being fed at
+/// all*.
+#[derive(Debug, Clone)]
+pub struct CoverageReport {
+    pub total_stories: i64,
+    pub stories_with_trace: i64,
+    pub verified_stories: i64,
+    pub total_traces: i64,
+    pub traces_with_token: i64,
+    pub traces_with_duration: i64,
+    pub total_tokens: i64,
+}
+
+/// Minimum number of stories before a green/yellow/red verdict is
+/// statistically meaningful. Below this, GCR and coverage report `grey
+/// (insufficient data)` instead of a falsely reassuring colour.
+pub const MIN_STORIES_FOR_RAG: usize = 10;
+
 /// Full story projection used by `export matrix` and `export story`.
 /// Extends the proof columns from [`StoryMatrixRecord`] with the lane,
 /// last verify result, T4 verdict, and T4 notes — all needed for

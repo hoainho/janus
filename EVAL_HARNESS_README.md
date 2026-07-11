@@ -2,6 +2,8 @@
 
 A single Rust binary combining the Janus project harness with eval-harness behavior-regression testing. No external dependencies — uses the user's current model context for LLM evaluation.
 
+> ⚗️ **Experimental / opt-in.** The eval-harness (`harness-cli eval …`, all 14 commands) is **not** part of the default build. It is gated behind the `eval` cargo feature and compiles only with `cargo build --release --features eval` (or `cargo install --features eval`). The default binary ships the 9 quality gates without this eval layer. Everything documented below assumes a build with `--features eval`.
+
 ---
 
 ## Bắt đầu nhanh (cho người mới)
