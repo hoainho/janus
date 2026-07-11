@@ -1667,7 +1667,7 @@ SELECT
   (SELECT COUNT(*) FROM trace),
   (SELECT COUNT(token_estimate) FROM trace),
   (SELECT COUNT(duration_seconds) FROM trace),
-  (SELECT COALESCE(SUM(token_estimate), 0) FROM trace);";
+  (SELECT CAST(COALESCE(SUM(token_estimate), 0) AS INTEGER) FROM trace);";
         let report = connection.query_row(sql, [], |row| {
             Ok(CoverageReport {
                 total_stories: row.get(0)?,

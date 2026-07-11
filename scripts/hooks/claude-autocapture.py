@@ -22,6 +22,7 @@ Exit code is always 0 (a capture failure must never break a Claude session).
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 from datetime import datetime
@@ -60,7 +61,9 @@ def user_text(obj):
     is a tool result / injected content / not a user turn."""
     if obj.get("type") != "user":
         return ""
-    msg = obj.get("message") or {}
+    msg = obj.get("message")
+    if not isinstance(msg, dict):
+        return ""
     content = msg.get("content")
     parts = []
     if isinstance(content, str):
@@ -106,7 +109,8 @@ def scan_transcript(path):
             n_msgs += 1
             has_usage = '"usage"' in line
             has_tooluse = '"tool_use"' in line or '"name":"Edit"' in line or '"name":"Write"' in line
-            has_ticket = ("WIN-" in line.upper()) or ("WPD-" in line.upper())
+            # avoid line.upper() — it copies the whole (possibly huge) line
+            has_ticket = any(p in line for p in ("WIN-", "win-", "WPD-", "wpd-"))
             has_ts = '"timestamp"' in line
             if not (has_usage or has_tooluse or has_ticket or has_ts):
                 continue
@@ -178,16 +182,24 @@ def scan_transcript(path):
     }
 
 
-def already_captured(session_id):
+def _db_query_one(sql, params):
+    """Read helper via Python's built-in sqlite3 — no external `sqlite3` CLI
+    dependency, parameterized (no injection), no noisy stderr."""
     try:
-        out = subprocess.run(
-            ["sqlite3", DB,
-             f"SELECT 1 FROM trace WHERE notes LIKE '%{session_id}%' LIMIT 1;"],
-            capture_output=True, text=True, timeout=10,
-        )
-        return out.stdout.strip() == "1"
+        with sqlite3.connect(DB) as conn:
+            return conn.execute(sql, params).fetchone() is not None
     except Exception:
         return False
+
+
+def already_captured(session_id):
+    return _db_query_one(
+        "SELECT 1 FROM trace WHERE notes LIKE ? LIMIT 1;", (f"%{session_id}%",)
+    )
+
+
+def story_exists(story_id):
+    return _db_query_one("SELECT 1 FROM story WHERE id = ? LIMIT 1;", (story_id,))
 
 
 def run(cmd):
@@ -257,9 +269,9 @@ def main():
     notes = (f"auto-captured; workspace={workspace}; session_id={session_id}; "
              f"lines={data['n_lines']}; wall_clock_s={data.get('wall_clock')}")
 
-    # ensure a story row exists for the ticket (idempotent-ish: add is safe to
-    # attempt; harness-cli rejects dup PK, which we tolerate)
-    if ticket:
+    # ensure a story row exists for the ticket — check first to avoid noisy
+    # dup-primary-key errors on stderr from harness-cli
+    if ticket and not story_exists(ticket):
         run([CLI, "story", "add", "--id", ticket,
              "--title", summary, "--lane", "normal",
              "--notes", "auto-captured story stub (lane defaulted; confirm)"])
