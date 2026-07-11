@@ -1,4 +1,5 @@
 use std::env;
+#[cfg(feature = "eval")]
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -53,6 +54,7 @@ enum Command {
     GateLog(GateLogArgs),
     Query(QueryArgs),
     Export(ExportArgs),
+    #[cfg(feature = "eval")]
     /// Eval harness commands for behavior-regression testing.
     Eval(EvalArgs),
 }
@@ -494,12 +496,14 @@ struct ExportStoryArgs {
     id: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalArgs {
     #[command(subcommand)]
     action: EvalAction,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Subcommand, Debug)]
 enum EvalAction {
     /// Run eval cases for a skill.
@@ -532,6 +536,7 @@ enum EvalAction {
     Rebaseline(EvalRebaselineArgs),
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalQualityArgs {
     #[arg(long)]
@@ -540,6 +545,7 @@ struct EvalQualityArgs {
     case: Option<String>,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalAnalyzeArgs {
     #[arg(long)]
@@ -548,12 +554,14 @@ struct EvalAnalyzeArgs {
     days: i64,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalSuggestArgs {
     #[arg(long)]
     skill: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalGoalArgs {
     #[arg(long)]
@@ -566,6 +574,7 @@ struct EvalGoalArgs {
     target: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalRunArgs {
     #[arg(long)]
@@ -586,30 +595,35 @@ struct EvalRunArgs {
     eval_type: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalBaselineArgs {
     #[arg(long)]
     skill: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalDiffArgs {
     #[arg(long)]
     run_id: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalStatusArgs {
     #[arg(long)]
     skill: Option<String>,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalPromoteArgs {
     #[arg(long)]
     skill: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalTrendArgs {
     #[arg(long)]
@@ -618,6 +632,7 @@ struct EvalTrendArgs {
     last: usize,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalAcceptArgs {
     #[arg(long)]
@@ -626,6 +641,7 @@ struct EvalAcceptArgs {
     case: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalApplyArgs {
     #[arg(long)]
@@ -634,6 +650,7 @@ struct EvalApplyArgs {
     run_id: Option<String>,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalAbArgs {
     #[arg(long)]
@@ -642,6 +659,7 @@ struct EvalAbArgs {
     skill_b: String,
 }
 
+#[cfg(feature = "eval")]
 #[derive(Args, Debug)]
 struct EvalRebaselineArgs {
     #[arg(long)]
@@ -946,6 +964,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 print_export_story_md(&service.query_export_story(&args.id)?)
             }
         },
+        #[cfg(feature = "eval")]
         Command::Eval(args) => match args.action {
             EvalAction::Run(args) => {
                 run_eval(&args)?;
@@ -995,6 +1014,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
     let skills_root = resolve_skills_root();
     let skill_dir = skills_root.join(&args.skill);
@@ -1397,6 +1417,7 @@ fn run_eval(args: &EvalRunArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn get_state_dir() -> std::path::PathBuf {
     if let Ok(dir) = std::env::var("EVAL_STATE_DIR") {
         return std::path::PathBuf::from(dir);
@@ -1409,6 +1430,7 @@ fn get_state_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(".opencode/eval-harness")
 }
 
+#[cfg(feature = "eval")]
 fn get_home_dir() -> Option<std::path::PathBuf> {
     if let Ok(home) = std::env::var("HOME") {
         return Some(std::path::PathBuf::from(home));
@@ -1422,6 +1444,7 @@ fn get_home_dir() -> Option<std::path::PathBuf> {
     None
 }
 
+#[cfg(feature = "eval")]
 fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
     let skills_root = resolve_skills_root();
     let skill_dir = skills_root.join(&args.skill);
@@ -1523,6 +1546,7 @@ fn run_baseline(args: &EvalBaselineArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_diff(_args: &EvalDiffArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1608,6 +1632,7 @@ fn run_diff(_args: &EvalDiffArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1662,6 +1687,7 @@ fn run_status(args: &EvalStatusArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1717,6 +1743,7 @@ fn run_promote(args: &EvalPromoteArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_analyze(args: &EvalAnalyzeArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1809,6 +1836,7 @@ fn run_analyze(args: &EvalAnalyzeArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -1873,6 +1901,7 @@ fn run_suggest(args: &EvalSuggestArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn resolve_skills_root() -> std::path::PathBuf {
     if let Ok(root) = std::env::var("OPENCODE_SKILLS_ROOT") {
         return std::path::PathBuf::from(root);
@@ -2760,6 +2789,7 @@ fn print_row(values: &[String], widths: &[usize]) {
     println!();
 }
 
+#[cfg(feature = "eval")]
 fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2798,6 +2828,7 @@ fn run_goal(args: &EvalGoalArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2861,6 +2892,7 @@ fn run_quality(args: &EvalQualityArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_trend(args: &EvalTrendArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2917,6 +2949,7 @@ fn run_trend(args: &EvalTrendArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_accept(args: &EvalAcceptArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -2986,6 +3019,7 @@ fn run_accept(args: &EvalAcceptArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_apply(args: &EvalApplyArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -3052,6 +3086,7 @@ fn run_apply(args: &EvalApplyArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_ab(args: &EvalAbArgs) -> Result<(), InterfaceError> {
     let state_dir = get_state_dir();
     let db_path = state_dir.join("harness.db");
@@ -3152,6 +3187,7 @@ fn run_ab(args: &EvalAbArgs) -> Result<(), InterfaceError> {
     Ok(())
 }
 
+#[cfg(feature = "eval")]
 fn run_rebaseline(args: &EvalRebaselineArgs) -> Result<(), InterfaceError> {
     println!("[eval-harness] Rebaselining skill '{}'...", args.skill);
     run_baseline(&EvalBaselineArgs {
